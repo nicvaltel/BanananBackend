@@ -8,16 +8,13 @@ module Application (runApp) where
 import Reexport
 import Lib
 import WebSocketServer
-import qualified Network.WebSockets as WS
 import Domain.Session
 import Control.Concurrent (threadDelay)
-import Network.WebSockets
-
 
 wsListener :: WSConnection -> WSSessionId -> App ()
 wsListener conn wsId = do
     forever $ do
-      msg <- liftIO (WS.receiveData conn :: IO Text)
+      msg <- liftIO $ receiveMessage conn
       pushInputMessage wsId msg
       processMessages wsId
     
@@ -33,23 +30,14 @@ appLoop = forever $ do
   liftIO $ threadDelay 10_000
 
 
-webSocketServer :: (WS.Connection -> wsId -> IO ())  -> (WS.Connection -> IO wsId) -> (WS.Connection -> wsId -> IO ()) -> WS.ServerApp
-webSocketServer act initConnection disconnect = \pendingConn -> do
-  conn <- acceptRequest pendingConn
-  wsId <- initConnection conn
-  WS.withPingThread conn 30 (pure ()) $ do
-    finally
-      (act conn wsId)
-      (disconnect conn wsId)
-  pure ()
-  
-runApp :: IO ()
-runApp = do
+runApp :: Port -> WSTimeout -> IO ()
+runApp port timeout = do
   session <- newTVarIO initialSession
-  putStrLn "Starting WebSocket server on port 1234..."
+
   let act = \conn wsId -> runSession session (wsListener conn wsId)
   let initConnection = \conn -> runSession session (initWSSession conn)
   let disconnect = \conn wsId -> runSession session (disconnectWSSession wsId)
-  _ <- forkIO $ WS.runServer "0.0.0.0" 1234 (webSocketServer act initConnection disconnect)
+  _ <- forkIO $ startWebSocketServer port timeout act initConnection disconnect
+  putStrLn $ "Starting WebSocket server on port " <> tshow port <> "..."  
 
   runReaderT (unApp appLoop) session
