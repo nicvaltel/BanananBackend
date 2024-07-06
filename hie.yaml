@@ -1,0 +1,10 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:BanananBack"
+
+    - path: "app/Main.hs"
+      component: "BanananBack:exe:BanananBack-exe"
+
+    - path: "test"
+      component: "BanananBack:test:BanananBack-test"
