@@ -67,3 +67,14 @@ initWSSession conn = do
           }
     writeTVar tvar newSession
     pure wsSessionId
+
+
+disconnectWSSession :: WSSessionId -> InMemory m ()
+disconnectWSSession wsId = do
+  tvar <- ask
+  liftIO $ atomically $ do
+    session <- readTVar tvar
+    let newSession = session
+          { sessionWSChans = Map.delete wsId (sessionWSChans session)
+          }
+    writeTVar tvar newSession

@@ -48,6 +48,7 @@ initialSession = Session
 
 class Monad m => WSServ m where
   initWSSession :: WSConnection -> m WSSessionId
+  disconnectWSSession :: WSSessionId -> m ()
   sendOutMessage :: WSSessionId -> m ()
   pushInputMessage :: WSSessionId -> WSMessage -> m ()
   processMessages :: WSSessionId -> m ()

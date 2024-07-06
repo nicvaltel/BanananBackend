@@ -1,9 +1,18 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant lambda" #-}
 
-module WebSocketServer where
+module WebSocketServer 
+  ( WSConnection
+  , WSMessage
+  , Port
+  , WSConnectionAct
+  , WSChan(..)
+  , pushWSIn
+  , popWSOut
+  , emptyWSChan
+
+  ) where
 
 import Reexport
 import qualified Network.WebSockets as WS
@@ -11,6 +20,9 @@ import Network.WebSockets
 
 type WSConnection = WS.Connection
 type WSMessage = Text
+type Port = Int
+
+type WSConnectionAct a = WS.Connection -> IO a 
 
 data WSChan = WSChan
   { wschanConn :: WSConnection
@@ -30,37 +42,35 @@ emptyWSChan conn = WSChan
   , wschanIn = mempty
   , wschanOut = mempty
   }
-  
 
 instance Show WSChan where
   show WSChan{wschanIn, wschanOut} = 
     "WsChanIn: " <> show wschanIn <> "; WsChanOut: " <> show wschanOut 
 
 
-meow :: WS.Connection -> IO ()
-meow conn = forever $ do
-    msg <- WS.receiveData conn :: IO Text
-    putStrLn msg
-    WS.sendTextData conn msg
-    -- WS.sendTextData conn $ msg `T.append` ", meow"
 
 
 -- Define the WebSocket application
-app :: (WS.Connection -> IO ()) -> WS.ServerApp
-app act = \pendingConn -> do
+webSocketServer :: WSConnectionAct () -> WSConnectionAct a -> WSConnectionAct () -> WS.ServerApp
+webSocketServer act initConnection disconnect = \pendingConn -> do
   conn <- acceptRequest pendingConn
-  putStrLn "WebSocket connection established."
+  initConnection conn
+  WS.withPingThread conn 30 (pure ()) $ do
+    finally
+      (act conn)
+      (disconnect conn)
   
-  act conn
-  -- Perform your WebSocket-specific logic here
-  -- For example, you can use 'sendTextData' and 'receiveData' to communicate with the client.
-  
-  -- Ensure the connection is properly closed when the action is complete
-  finally
-    (do
-      putStrLn "WebSocket connection closed."
-      sendClose conn ("Closing connection" :: WSMessage))
-    (catchConnectionException conn)
+  -- where
+  --   disconnect conn = do
+  --     putStrLn $ tshow conn <> " disconnected"
+  --     pure ()
+  --     -- removeConnection wSState idConn
+  --     -- logger LgInfo $ show idConn ++ " disconnected"
+    
+  --   initConnection conn = do
+  --     putStrLn $ tshow conn <> " WebSocket connection established."
+  --     pure ()
+
 
 -- Function to handle connection exceptions
 catchConnectionException :: Connection -> IO ()
@@ -70,17 +80,23 @@ catchConnectionException conn = do
     (\(_ :: ConnectionException) -> pure ()) -- Handle connection exceptions
 
 -- Function to start the WebSocket server
-startWebSocketServer :: Int -> (WS.Connection -> IO ()) -> IO ()
-startWebSocketServer port act = do
-  WS.runServer "0.0.0.0" port (app act)
+startWebSocketServer :: Port -> WSConnectionAct () -> WSConnectionAct a -> WSConnectionAct () -> IO ()
+startWebSocketServer port act  initConnection disconnect = do
+  WS.runServer "0.0.0.0" port (webSocketServer act  initConnection disconnect)
 
-main :: IO ()
-main = do
+
+
+echo :: WS.Connection -> IO ()
+echo conn = forever $ do
+    msg <- WS.receiveData conn :: IO Text
+    putStrLn msg
+    WS.sendTextData conn msg
+    -- WS.sendTextData conn $ msg `T.append` ", meow"
+
+runEcho :: IO ()
+runEcho = do
   putStrLn "Starting WebSocket server on port 1234..."
-  startWebSocketServer 1234 meow
-
-
-
+  startWebSocketServer 1234 echo (const $ pure ()) (const $ pure ())
 
 
 -- makePendingConnection :: Socket -> ConnectionOptions -> IO PendingConnection 

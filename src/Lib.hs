@@ -24,6 +24,7 @@ instance SessionRepo App where
 
 instance WSServ App where
   initWSSession = App . M.initWSSession
+  disconnectWSSession = App . M.disconnectWSSession
   sendOutMessage = App . M.sendOutMessage
   pushInputMessage wsId msg = App $ M.pushInputMessage wsId msg
   processMessages = App . M.processMessages
