@@ -28,6 +28,8 @@ dependencies:
 - containers
 - data-has
 - string-random
+- aeson
+- bytestring
 
 
 default-extensions:

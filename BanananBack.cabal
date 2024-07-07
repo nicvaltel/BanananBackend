@@ -28,6 +28,7 @@ library
       Adapter.InMemory.Type
       Adapter.InMemory.WSServ
       Application
+      Config
       Domain.Session
       Domain.User
       Domain.Validation
@@ -46,7 +47,9 @@ library
       NamedFieldPuns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
+    , bytestring
     , classy-prelude
     , containers
     , data-has
@@ -71,7 +74,9 @@ executable BanananBack-exe
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       BanananBack
+    , aeson
     , base >=4.7 && <5
+    , bytestring
     , classy-prelude
     , containers
     , data-has
@@ -97,7 +102,9 @@ test-suite BanananBack-test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       BanananBack
+    , aeson
     , base >=4.7 && <5
+    , bytestring
     , classy-prelude
     , containers
     , data-has

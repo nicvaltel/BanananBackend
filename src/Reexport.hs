@@ -19,11 +19,12 @@ module Reexport
   , module Control.Concurrent
   , module Control.Exception
   , module Debug.Trace
+  , module Data.Aeson
   ) where
 
 
 import Prelude hiding (putStrLn)
-import Control.Monad (void, when, unless, forever)
+import Control.Monad (void, when, unless, forever, mzero)
 import Data.Text(Text)
 import Data.Text.IO (putStrLn)
 import Data.Maybe(maybeToList)
@@ -42,4 +43,5 @@ import Data.Foldable (traverse_, forM_)
 import Control.Concurrent (forkIO)
 import Control.Exception (finally, catch)
 import Debug.Trace (trace, traceShow)
+import Data.Aeson (FromJSON(..), Value (Object), (.:), decode, encode, decodeStrict)
 

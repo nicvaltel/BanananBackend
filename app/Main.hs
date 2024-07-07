@@ -1,9 +1,17 @@
 module Main (main) where
 
-import Prelude(IO, putStrLn)
+import Reexport
+import qualified Data.ByteString as B
 import qualified Application
-import qualified WebSocketServer as Application
+
+import Config
+
+configPath :: FilePath
+configPath = "./config.json"
 
 main :: IO ()
 main = do
-  Application.runApp 1234 30 -- port timeout(ms)
+  rawConfig <- B.readFile configPath
+  case decodeStrict rawConfig of
+    Just Config{port, wstimeoutMs} -> Application.runApp port wstimeoutMs
+    Nothing -> putStrLn $ "Invalid config file " <> tshow configPath
