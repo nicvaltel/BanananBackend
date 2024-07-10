@@ -32,6 +32,10 @@ library
       Domain.Session
       Domain.User
       Domain.Validation
+      GameBot.Actors
+      GameBot.Bot
+      GameBot.GameModel
+      GameBot.GraphBall
       Lib
       Reexport
       WebSocketServer
