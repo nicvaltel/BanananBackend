@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 import Adapter.InMemory.Type
 
 
-newGuestSession :: InMemory m (GuestId, SessionGuestId)
+newGuestSession :: InMemory gs m (GuestId, SessionGuestId)
 newGuestSession = do
   tvar <- ask
   liftIO $ do 
@@ -27,7 +27,7 @@ newGuestSession = do
       writeTVar tvar newSession
       pure (guestId, sessionId)
 
-newUserSession :: UserId -> InMemory m SessionUserId
+newUserSession :: UserId -> InMemory gs m SessionUserId
 newUserSession userId = do
   tvar <- ask
   liftIO $ do 
@@ -41,19 +41,19 @@ newUserSession userId = do
       writeTVar tvar newSession
       pure sessionId
 
-findUserIdBySessionId :: SessionUserId -> InMemory m (Maybe UserId)
+findUserIdBySessionId :: SessionUserId -> InMemory gs m (Maybe UserId)
 findUserIdBySessionId sessionId = do
   tvar <- ask
   session <- liftIO $ readTVarIO tvar
   pure $ Map.lookup sessionId (sessionActiveUsers session)
 
-findGuestIdBySessionId :: SessionGuestId -> InMemory m (Maybe GuestId)
+findGuestIdBySessionId :: SessionGuestId -> InMemory gs m (Maybe GuestId)
 findGuestIdBySessionId sessionId = do
   tvar <- ask
   session <- liftIO $ readTVarIO tvar
   pure $ Map.lookup sessionId (sessionActiveGuests session)
 
-deleteUserSession :: SessionUserId -> InMemory m ()
+deleteUserSession :: SessionUserId -> InMemory gs m ()
 deleteUserSession sessionId = do
   tvar <- ask
   liftIO $ do 
@@ -64,7 +64,7 @@ deleteUserSession sessionId = do
             }
       writeTVar tvar newSession
 
-deleteGuestSession :: SessionGuestId -> InMemory m ()
+deleteGuestSession :: SessionGuestId -> InMemory gs m ()
 deleteGuestSession sessionId = do
   tvar <- ask
   liftIO $ do 

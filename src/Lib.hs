@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Lib where
 
@@ -8,10 +9,10 @@ import qualified Adapter.InMemory.Session as M
 import qualified Adapter.InMemory.WSServ as M
 import Adapter.InMemory.Type(MemState)
 import qualified Prelude
+import Domain.GameBot.GameModel (GameState)
 
 
-
-newtype App a = App { unApp :: ReaderT MemState IO a  } deriving (Functor, Applicative, Monad, MonadReader MemState, MonadIO, MonadFail)
+newtype App a = App { unApp :: ReaderT (MemState GameState) IO a  } deriving (Functor, Applicative, Monad, MonadReader (MemState GameState), MonadIO, MonadFail)
 
 
 instance SessionRepo App where
@@ -29,8 +30,18 @@ instance WSServ App where
   pushInputMessage wsId msg = App $ M.pushInputMessage wsId msg
   processMessages = App . M.processMessages
 
+instance Bot App where
+  -- processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
+  processWSMessage msg gs = pure (gs, msg)
+    
+    -- App $ do
+    --   st :: GameState <- get
+    --   let (msgOut, newSt) = runState (BOT.processWSMessage msg) st
+    --   put newSt
+    --   pure msgOut
 
-runSession :: MemState -> App a -> IO a
+
+runSession :: MemState GameState -> App a -> IO a
 runSession state = flip runReaderT state . unApp
   
 runRoutine :: App () -> IO ()

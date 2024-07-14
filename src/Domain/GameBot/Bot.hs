@@ -1,8 +1,8 @@
-module GameBot.Bot where
+module Domain.GameBot.Bot where
 
 import Reexport
 import WebSocketServer (WSMessage)
-import GameBot.GameModel (AppMod)
+import Domain.GameBot.GameModel (AppMod)
 
 type BoxWidth = Float
 type BoxHeight = Float

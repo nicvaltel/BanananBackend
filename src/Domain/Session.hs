@@ -20,7 +20,7 @@ newtype SessionGuestId = SessionGuestId Text deriving (Show, Eq, Ord)
 newtype WSSessionId = WSSessionId Int deriving (Show, Eq, Ord)
 
 
-data Session = Session  
+data Session gs = Session  
   { sessionAllGuest :: Set GuestId
   , sessionAllUsers :: Set UserId
   , sessionActiveGuests :: Map SessionGuestId GuestId
@@ -30,9 +30,10 @@ data Session = Session
   , sessionWSSessionIdCounter :: Int
   , sessionWSToSend :: [WSSessionId]
   , sessionWSChans :: Map WSSessionId WSChan
+  , sessionGameStates :: Map WSSessionId gs
   }  deriving (Show)
 
-initialSession :: Session
+initialSession :: Session gs
 initialSession = Session
   { sessionAllGuest = mempty
   , sessionAllUsers = mempty
@@ -43,6 +44,7 @@ initialSession = Session
   , sessionWSSessionIdCounter = 0
   , sessionWSToSend = mempty
   , sessionWSChans = mempty
+  , sessionGameStates = mempty
   }
 
 
@@ -62,4 +64,7 @@ class Monad m => SessionRepo m where
   deleteGuestSession :: SessionGuestId -> m ()
 
 class Monad m => Bot m where
-  processWSMessage :: WSMessage -> m WSMessage
+  processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
+
+instance Bot IO where  
+  processWSMessage msg gs = pure (gs, msg)

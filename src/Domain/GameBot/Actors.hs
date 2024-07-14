@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-module GameBot.Actors 
+module Domain.GameBot.Actors 
   ( Gun(..)
   , Ball(..)
   , Dragon(..)

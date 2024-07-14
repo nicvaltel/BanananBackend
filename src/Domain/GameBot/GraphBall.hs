@@ -1,4 +1,4 @@
-module GameBot.GraphBall 
+module Domain.GameBot.GraphBall 
   ( GraphNode(..)
   , Graph
   , GraphBall
@@ -9,8 +9,8 @@ module GameBot.GraphBall
   ) where
 
 import Reexport
-import GameBot.Actors (Actor(..), BallColor, NameId, ActorData (..), Ball (..))
-import qualified GameBot.Actors as AC
+import Domain.GameBot.Actors (Actor(..), BallColor, NameId, ActorData (..), Ball (..))
+import qualified Domain.GameBot.Actors as AC
 import qualified Data.Map.Strict as Map
 
 data GraphNode a id = Node {nodeId :: id, nodeData :: a, neighbours :: [GraphNode a id]}

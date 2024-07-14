@@ -22,6 +22,7 @@ module Reexport
   , module Data.Aeson
   , module GHC.Generics
   , module Control.Monad.State 
+  , module Control.Monad.RWS
   ) where
 
 
@@ -48,4 +49,5 @@ import Debug.Trace (trace, traceShow)
 import Data.Aeson (FromJSON(..), ToJSON(..), FromJSONKey(..), ToJSONKey(..), Value (Object), (.:), decode, encode, decodeStrict)
 import GHC.Generics (Generic)
 import Control.Monad.State (State, modify , get, put, gets)
+import Control.Monad.RWS (RWST, runRWST, evalRWST)
 

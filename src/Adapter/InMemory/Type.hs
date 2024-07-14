@@ -6,5 +6,5 @@ module Adapter.InMemory.Type where
 import Reexport
 import Domain.Session
 
-type MemState = TVar Session
-type InMemory m a = MonadIO m => ReaderT MemState m a
+type MemState gs = TVar (Session gs)
+type InMemory gs m a = MonadIO m => ReaderT (MemState gs) m a

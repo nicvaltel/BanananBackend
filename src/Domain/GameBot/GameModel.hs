@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
-module GameBot.GameModel where
+module Domain.GameBot.GameModel where
 
 
 import Reexport
-import GameBot.Actors
+import Domain.GameBot.Actors
+import Domain.GameBot.GraphBall
 import qualified Data.Map.Strict as M
-import GameBot.GraphBall
 
 
 type AppMod a = State GameState a
