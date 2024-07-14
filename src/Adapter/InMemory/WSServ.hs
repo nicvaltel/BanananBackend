@@ -9,9 +9,8 @@ import Adapter.InMemory.Type
 import qualified Network.WebSockets as WS
 import WebSocketServer
 import qualified Data.Map as Map
-import Control.Monad (foldM)
 import Data.Has (Has(getter))
-import Domain.GameBot.GameModel (GameState (GameState))
+import Domain.GameBot.GameModel (GameState, initialGameState)
 
 
 sendOutMessage :: WSSessionId -> InMemory r m ()
@@ -43,8 +42,8 @@ pushInputMessage wsId msg = do
       Just chan -> writeTVar tvar session{sessionWSChans = Map.insert wsId (pushWSIn msg chan) chans}  
       
 
-processMessages' :: WSSessionId -> InMemory r m ()
-processMessages' wsId = do
+processMessagesEcho :: WSSessionId -> InMemory r m ()
+processMessagesEcho wsId = do
   tvar <- asks getter
   liftIO $ atomically $ do
     session <- readTVar tvar
@@ -60,41 +59,42 @@ processMessages' wsId = do
 
 
 processMessages :: (WSMessage -> GameState -> (GameState, WSMessage)) -> WSSessionId -> InMemory r m ()
-processMessages processWSMsg wsId = do (processMessages' wsId)
-  -- tvar <- asks getter
-  -- tvarStates :: Map WSSessionId (TVar GameState) <- asks getter
-  -- case Map.lookup wsId tvarStates of
-  --   Nothing -> pure ()
-  --   Just tvSt -> do
-  --     msgs <- liftIO $ atomically $ do
-  --       session <- readTVar tvar
-  --       let chans = sessionWSChans session
-  --       case Map.lookup wsId chans of
-  --         Nothing -> pure []
-  --         Just chan@WSChan{wschanIn} -> do
-  --           let newChan = chan{wschanIn = [] }
-  --           writeTVar tvar session
-  --               { sessionWSChans = Map.insert wsId newChan chans}
-  --           pure  wschanIn 
-  --     unless (null msgs) $ liftIO $ atomically $ do
-  --       gs <- readTVar tvSt
-  --       let (newGs :: GameState, outMsgs) = foldr 
-  --               (\msg (gsAcc,outAcc)-> let (gs', out') = processWSMsg msg gsAcc in (gs', out' : outAcc)) 
-  --               (gs,[]) 
-  --               msgs 
-  --       session <- readTVar tvar
-  --       let chans = sessionWSChans session
-  --       case Map.lookup wsId chans of
-  --         Nothing -> pure ()
-  --         Just chan@WSChan{wschanOut} -> do
-  --           let newChan = chan{wschanOut = reverse outMsgs <> wschanOut }
-  --           writeTVar tvar session
-  --               { sessionWSChans = Map.insert wsId newChan chans
-  --               , sessionWSToSend = wsId : sessionWSToSend session
-  --               }
-  --           writeTVar tvSt  newGs
+processMessages processWSMsg wsId = do 
+  tvar <- asks getter
+  (msgs, tvarStates) <- liftIO $ atomically $ do
+    session <- readTVar tvar
+    let chans = sessionWSChans session
+    case Map.lookup wsId chans of
+      Nothing -> pure ([], sessionGameStates session)
+      Just chan@WSChan{wschanIn} -> do
+        let newChan = chan{wschanIn = []}
+        writeTVar tvar session{sessionWSChans = Map.insert wsId newChan chans}
+        pure  (wschanIn, sessionGameStates session) 
 
+  unless (null msgs) $ do
+    case Map.lookup wsId tvarStates of
+      Nothing -> pure ()
+      Just tvSt -> do
+        outMsgs <- liftIO $ atomically $ do
+          gs <- readTVar tvSt
+          let (newGs :: GameState, outMsgs) = foldr 
+                  (\msg (gsAcc,outAcc)-> let (gs', out') = processWSMsg msg gsAcc in (gs', out' : outAcc)) 
+                  (gs,[]) 
+                  msgs
+          writeTVar tvSt  newGs
+          pure outMsgs
 
+        unless (null outMsgs) $ liftIO $ atomically $ do
+          session <- readTVar tvar
+          let chans = sessionWSChans session
+          case Map.lookup wsId chans of
+            Nothing -> pure ()
+            Just chan@WSChan{wschanOut} -> do
+              let newChan = chan{wschanOut = reverse outMsgs <> wschanOut }
+              writeTVar tvar session
+                  { sessionWSChans = Map.insert wsId newChan chans
+                  , sessionWSToSend = wsId : sessionWSToSend session
+                  }
 -- foldM 
 --   (\(gsAcc, outAcc) msg -> processWSMessage msg gsAcc >>= \(gs', out') -> pure (gs', out' : outAcc)) 
 --   (gs, []) 
@@ -104,13 +104,15 @@ processMessages processWSMsg wsId = do (processMessages' wsId)
 initWSSession :: WSConnection -> InMemory r m WSSessionId
 initWSSession conn = do
   tvar <- asks getter
+  gameState <- liftIO $ newTVarIO initialGameState
   liftIO $ atomically $ do
     session <- readTVar tvar
     let wsId = sessionWSSessionIdCounter session + 1
     let wsSessionId = WSSessionId wsId
     let newSession = session 
           { sessionWSSessionIdCounter = wsId
-          , sessionWSChans = Map.insert wsSessionId (emptyWSChan conn) (sessionWSChans session)  
+          , sessionWSChans = Map.insert wsSessionId (emptyWSChan conn) (sessionWSChans session)
+          , sessionGameStates = Map.insert wsSessionId gameState (sessionGameStates session) 
           }
     writeTVar tvar newSession
     pure wsSessionId
@@ -123,5 +125,6 @@ disconnectWSSession wsId = do
     session <- readTVar tvar
     let newSession = session
           { sessionWSChans = Map.delete wsId (sessionWSChans session)
+          , sessionGameStates = Map.delete wsId (sessionGameStates session)
           }
     writeTVar tvar newSession

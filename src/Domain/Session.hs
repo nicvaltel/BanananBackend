@@ -31,7 +31,8 @@ data Session = Session
   , sessionWSSessionIdCounter :: Int
   , sessionWSToSend :: [WSSessionId]
   , sessionWSChans :: Map WSSessionId WSChan
-  }  deriving (Show)
+  , sessionGameStates :: Map WSSessionId (TVar GameState)
+  } 
 
 initialSession :: Session
 initialSession = Session
@@ -44,6 +45,7 @@ initialSession = Session
   , sessionWSSessionIdCounter = 0
   , sessionWSToSend = mempty
   , sessionWSChans = mempty
+  , sessionGameStates = mempty
   }
 
 

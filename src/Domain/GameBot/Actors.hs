@@ -32,15 +32,15 @@ data Actor ac = Actor {
   , actorActorData :: ac
 } deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
 
-actorMock :: Actor () 
-actorMock = Actor
+actorMock :: a -> Actor a 
+actorMock adata = Actor
   { nameId = NameId "actor_mock",
     x = 0.0,
     y = 0.0,
     width = 0.0,
     height = 0.0,
     angle = 0.0,
-    actorActorData = ()
+    actorActorData = adata
   }
 
 data Gun = Gun {
