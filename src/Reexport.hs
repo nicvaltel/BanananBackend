@@ -21,6 +21,7 @@ module Reexport
   , module Debug.Trace
   , module Data.Aeson
   , module GHC.Generics
+  , module Control.Monad.State 
   ) where
 
 
@@ -28,7 +29,7 @@ import Prelude hiding (putStrLn)
 import Control.Monad (void, when, unless, forever, mzero)
 import Data.Text(Text)
 import Data.Text.IO (putStrLn)
-import Data.Maybe(maybeToList)
+import Data.Maybe(maybeToList, catMaybes)
 import Control.Monad.Except (runExceptT, ExceptT (ExceptT), MonadError(..))
 import Control.Monad.Trans (lift)
 import Data.Map (Map)
@@ -46,4 +47,5 @@ import Control.Exception (finally, catch)
 import Debug.Trace (trace, traceShow)
 import Data.Aeson (FromJSON(..), ToJSON(..), FromJSONKey(..), ToJSONKey(..), Value (Object), (.:), decode, encode, decodeStrict)
 import GHC.Generics (Generic)
+import Control.Monad.State (State, modify , get, put, gets)
 

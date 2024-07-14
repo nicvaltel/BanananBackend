@@ -60,3 +60,6 @@ class Monad m => SessionRepo m where
   findGuestIdBySessionId :: SessionGuestId -> m (Maybe GuestId)
   deleteUserSession :: SessionUserId -> m ()
   deleteGuestSession :: SessionGuestId -> m ()
+
+class Monad m => Bot m where
+  processWSMessage :: WSMessage -> m WSMessage

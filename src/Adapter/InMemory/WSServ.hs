@@ -41,17 +41,27 @@ pushInputMessage wsId msg = do
 processMessages :: WSSessionId -> InMemory m ()
 processMessages wsId = do
   tvar <- ask
+  intputMsgs <- liftIO $ atomically $ do
+    session <- readTVar tvar
+    let chans = sessionWSChans session
+    case Map.lookup wsId chans of
+      Nothing -> pure []
+      Just chan@WSChan{wschanIn} -> do
+        let newChan = chan{wschanIn = [] }
+        writeTVar tvar session
+            { sessionWSChans = Map.insert wsId newChan chans}
+        pure wschanIn 
+  let outMsgs = reverse intputMsgs
   liftIO $ atomically $ do
     session <- readTVar tvar
     let chans = sessionWSChans session
     case Map.lookup wsId chans of
       Nothing -> pure ()
-      Just chan@WSChan{wschanIn, wschanOut} -> do
-        let newChan = chan{wschanIn = [], wschanOut = reverse wschanIn <> wschanOut }
+      Just chan@WSChan{wschanOut} -> do
+        let newChan = chan{wschanOut = outMsgs <> wschanOut }
         writeTVar tvar session
             { sessionWSChans = Map.insert wsId newChan chans
-            , sessionWSToSend = wsId : sessionWSToSend session}  
-
+            , sessionWSToSend = wsId : sessionWSToSend session}
 
 
 initWSSession :: WSConnection -> InMemory m WSSessionId

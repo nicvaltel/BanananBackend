@@ -1,11 +1,19 @@
 module GameBot.Bot where
 
 import Reexport
+import WebSocketServer (WSMessage)
+import GameBot.GameModel (AppMod)
 
 type BoxWidth = Float
 type BoxHeight = Float
 type Diameter = Float
 type Y = Float
+
+
+
+
+processWSMessage :: WSMessage -> AppMod WSMessage
+processWSMessage msg = pure msg
 
 
 -- addRandomBalls :: GameConfig -> Int -> BoxWidth -> Y -> AppGame Unit

@@ -14,6 +14,7 @@ module GameBot.Actors
   , NameId(..)
   , Actor(..)
   , actorMock
+  , checkActorNameId
   ) where
 
 
@@ -92,3 +93,7 @@ data ActorData =
   | ActorDragon Dragon
   | ActorBallQueue BallQueue 
   deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+
+
+checkActorNameId ::  NameId -> Actor ac -> Bool
+checkActorNameId nId Actor{nameId} = nId == nameId
