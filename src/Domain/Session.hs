@@ -13,6 +13,7 @@ module Domain.Session
 import Reexport
 import Domain.User
 import WebSocketServer
+import Domain.GameBot.GameModel (GameState)
 
 
 newtype SessionUserId = SessionUserId Text deriving (Show, Eq, Ord)
@@ -20,7 +21,7 @@ newtype SessionGuestId = SessionGuestId Text deriving (Show, Eq, Ord)
 newtype WSSessionId = WSSessionId Int deriving (Show, Eq, Ord)
 
 
-data Session gs = Session  
+data Session = Session  
   { sessionAllGuest :: Set GuestId
   , sessionAllUsers :: Set UserId
   , sessionActiveGuests :: Map SessionGuestId GuestId
@@ -30,10 +31,9 @@ data Session gs = Session
   , sessionWSSessionIdCounter :: Int
   , sessionWSToSend :: [WSSessionId]
   , sessionWSChans :: Map WSSessionId WSChan
-  , sessionGameStates :: Map WSSessionId gs
   }  deriving (Show)
 
-initialSession :: Session gs
+initialSession :: Session
 initialSession = Session
   { sessionAllGuest = mempty
   , sessionAllUsers = mempty
@@ -44,7 +44,6 @@ initialSession = Session
   , sessionWSSessionIdCounter = 0
   , sessionWSToSend = mempty
   , sessionWSChans = mempty
-  , sessionGameStates = mempty
   }
 
 
@@ -53,7 +52,7 @@ class Monad m => WSServ m where
   disconnectWSSession :: WSSessionId -> m ()
   sendOutMessage :: WSSessionId -> m ()
   pushInputMessage :: WSSessionId -> WSMessage -> m ()
-  processMessages :: WSSessionId -> m ()
+  processMessages :: (WSMessage -> GameState -> (GameState, WSMessage)) -> WSSessionId -> m ()
 
 class Monad m => SessionRepo m where
   newGuestSession :: m (GuestId, SessionGuestId)
@@ -63,8 +62,8 @@ class Monad m => SessionRepo m where
   deleteUserSession :: SessionUserId -> m ()
   deleteGuestSession :: SessionGuestId -> m ()
 
-class Monad m => Bot m where
-  processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
+-- class Monad m => Bot m where
+--   processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
 
-instance Bot IO where  
-  processWSMessage msg gs = pure (gs, msg)
+-- instance Bot IO where  
+--   processWSMessage msg gs = pure (gs, msg)

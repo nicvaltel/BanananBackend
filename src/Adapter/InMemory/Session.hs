@@ -1,4 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Adapter.InMemory.Session where
 
@@ -8,11 +10,12 @@ import Domain.User
 import Domain.Session
 import qualified Data.Map as Map
 import Adapter.InMemory.Type
+import Data.Has (Has(getter))
 
 
-newGuestSession :: InMemory gs m (GuestId, SessionGuestId)
+newGuestSession :: InMemory r m (GuestId, SessionGuestId)
 newGuestSession = do
-  tvar <- ask
+  tvar :: TVar Session <- asks getter
   liftIO $ do 
     sId <- stringRandomIO "[A-Za-z0-9]{16}"
     atomically $ do
@@ -27,9 +30,9 @@ newGuestSession = do
       writeTVar tvar newSession
       pure (guestId, sessionId)
 
-newUserSession :: UserId -> InMemory gs m SessionUserId
+newUserSession :: UserId -> InMemory r m SessionUserId
 newUserSession userId = do
-  tvar <- ask
+  tvar <- asks getter
   liftIO $ do 
     sId <- stringRandomIO "[A-Za-z0-9]{16}"
     atomically $ do
@@ -41,21 +44,21 @@ newUserSession userId = do
       writeTVar tvar newSession
       pure sessionId
 
-findUserIdBySessionId :: SessionUserId -> InMemory gs m (Maybe UserId)
+findUserIdBySessionId :: SessionUserId -> InMemory r m (Maybe UserId)
 findUserIdBySessionId sessionId = do
-  tvar <- ask
+  tvar <- asks getter
   session <- liftIO $ readTVarIO tvar
   pure $ Map.lookup sessionId (sessionActiveUsers session)
 
-findGuestIdBySessionId :: SessionGuestId -> InMemory gs m (Maybe GuestId)
+findGuestIdBySessionId :: SessionGuestId -> InMemory r m (Maybe GuestId)
 findGuestIdBySessionId sessionId = do
-  tvar <- ask
+  tvar <- asks getter
   session <- liftIO $ readTVarIO tvar
   pure $ Map.lookup sessionId (sessionActiveGuests session)
 
-deleteUserSession :: SessionUserId -> InMemory gs m ()
+deleteUserSession :: SessionUserId -> InMemory r m ()
 deleteUserSession sessionId = do
-  tvar <- ask
+  tvar <- asks getter
   liftIO $ do 
     atomically $ do
       session <- readTVar tvar
@@ -64,9 +67,9 @@ deleteUserSession sessionId = do
             }
       writeTVar tvar newSession
 
-deleteGuestSession :: SessionGuestId -> InMemory gs m ()
+deleteGuestSession :: SessionGuestId -> InMemory r m ()
 deleteGuestSession sessionId = do
-  tvar <- ask
+  tvar <- asks getter 
   liftIO $ do 
     atomically $ do
       session <- readTVar tvar

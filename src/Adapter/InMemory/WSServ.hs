@@ -1,4 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Adapter.InMemory.WSServ where
 
 import Reexport
@@ -8,11 +10,13 @@ import qualified Network.WebSockets as WS
 import WebSocketServer
 import qualified Data.Map as Map
 import Control.Monad (foldM)
+import Data.Has (Has(getter))
+import Domain.GameBot.GameModel (GameState (GameState))
 
 
-sendOutMessage :: WSSessionId -> InMemory gs m ()
+sendOutMessage :: WSSessionId -> InMemory r m ()
 sendOutMessage wsId = do
-  tvar <- ask
+  tvar :: TVar Session <- asks getter
   mayMsg <- liftIO $ atomically $ do
     session <- readTVar tvar
     let chans = sessionWSChans session
@@ -28,9 +32,9 @@ sendOutMessage wsId = do
     Nothing -> pure ()
     Just (msg, conn) -> liftIO $ WS.sendTextData conn msg 
 
-pushInputMessage :: WSSessionId -> WSMessage -> InMemory gs m ()
+pushInputMessage :: WSSessionId -> WSMessage -> InMemory r m ()
 pushInputMessage wsId msg = do
-  tvar <- ask
+  tvar <- asks getter 
   liftIO $ atomically $ do
     session <- readTVar tvar
     let chans = sessionWSChans session
@@ -39,52 +43,67 @@ pushInputMessage wsId msg = do
       Just chan -> writeTVar tvar session{sessionWSChans = Map.insert wsId (pushWSIn msg chan) chans}  
       
 
-processMessages :: Bot m => WSSessionId -> InMemory gs m ()
-processMessages wsId = do
-  tvar <- ask
-  mayGsMsgs <- liftIO $ atomically $ do
+processMessages' :: WSSessionId -> InMemory r m ()
+processMessages' wsId = do
+  tvar <- asks getter
+  liftIO $ atomically $ do
     session <- readTVar tvar
     let chans = sessionWSChans session
     case Map.lookup wsId chans of
-      Nothing -> pure Nothing
-      Just chan@WSChan{wschanIn} -> do
-        case Map.lookup wsId (sessionGameStates session) of
-          Nothing -> pure Nothing
-          Just gs -> do
-            let newChan = chan{wschanIn = [] }
-            writeTVar tvar session
-                { sessionWSChans = Map.insert wsId newChan chans}
-            pure $ Just (gs, wschanIn) 
-  case mayGsMsgs of
-    Nothing -> pure ()
-    Just (gs, inputMsgs) -> do
-      (newGs, outMsgs) <- lift $ foldM processFoldM (gs,[]) (reverse inputMsgs)
-        -- foldM 
-        --   (\(gsAcc, outAcc) msg -> processWSMessage msg gsAcc >>= \(gs', out') -> pure (gs', out' : outAcc)) 
-        --   (gs, []) 
-        --   (reverse inputMsgs)
-      liftIO $ atomically $ do
-        session <- readTVar tvar
-        let chans = sessionWSChans session
-        case Map.lookup wsId chans of
-          Nothing -> pure ()
-          Just chan@WSChan{wschanOut} -> do
-            let sNewGS = Map.insert wsId newGs (sessionGameStates session)
-            let newChan = chan{wschanOut = reverse outMsgs <> wschanOut }
-            writeTVar tvar session
-                { sessionWSChans = Map.insert wsId newChan chans
-                , sessionWSToSend = wsId : sessionWSToSend session
-                , sessionGameStates = sNewGS
-                }
-  where 
-    processFoldM :: Bot m => (gs, [WSMessage]) -> WSMessage -> m (gs, [WSMessage])
-    processFoldM (gsAcc, outAcc) msg = do
-      (gs', out') <- processWSMessage msg gsAcc
-      pure (gs', out' : outAcc)
+      Nothing -> pure ()
+      Just chan@WSChan{wschanIn, wschanOut} -> do
+        let newChan = chan{wschanIn = [], wschanOut = reverse wschanIn <> wschanOut }
+        writeTVar tvar session
+            { sessionWSChans = Map.insert wsId newChan chans
+            , sessionWSToSend = wsId : sessionWSToSend session}  
 
-initWSSession :: WSConnection -> InMemory gs m WSSessionId
+
+
+processMessages :: (WSMessage -> GameState -> (GameState, WSMessage)) -> WSSessionId -> InMemory r m ()
+processMessages processWSMsg wsId = do (processMessages' wsId)
+  -- tvar <- asks getter
+  -- tvarStates :: Map WSSessionId (TVar GameState) <- asks getter
+  -- case Map.lookup wsId tvarStates of
+  --   Nothing -> pure ()
+  --   Just tvSt -> do
+  --     msgs <- liftIO $ atomically $ do
+  --       session <- readTVar tvar
+  --       let chans = sessionWSChans session
+  --       case Map.lookup wsId chans of
+  --         Nothing -> pure []
+  --         Just chan@WSChan{wschanIn} -> do
+  --           let newChan = chan{wschanIn = [] }
+  --           writeTVar tvar session
+  --               { sessionWSChans = Map.insert wsId newChan chans}
+  --           pure  wschanIn 
+  --     unless (null msgs) $ liftIO $ atomically $ do
+  --       gs <- readTVar tvSt
+  --       let (newGs :: GameState, outMsgs) = foldr 
+  --               (\msg (gsAcc,outAcc)-> let (gs', out') = processWSMsg msg gsAcc in (gs', out' : outAcc)) 
+  --               (gs,[]) 
+  --               msgs 
+  --       session <- readTVar tvar
+  --       let chans = sessionWSChans session
+  --       case Map.lookup wsId chans of
+  --         Nothing -> pure ()
+  --         Just chan@WSChan{wschanOut} -> do
+  --           let newChan = chan{wschanOut = reverse outMsgs <> wschanOut }
+  --           writeTVar tvar session
+  --               { sessionWSChans = Map.insert wsId newChan chans
+  --               , sessionWSToSend = wsId : sessionWSToSend session
+  --               }
+  --           writeTVar tvSt  newGs
+
+
+-- foldM 
+--   (\(gsAcc, outAcc) msg -> processWSMessage msg gsAcc >>= \(gs', out') -> pure (gs', out' : outAcc)) 
+--   (gs, []) 
+--   (reverse inputMsgs)
+
+
+initWSSession :: WSConnection -> InMemory r m WSSessionId
 initWSSession conn = do
-  tvar <- ask
+  tvar <- asks getter
   liftIO $ atomically $ do
     session <- readTVar tvar
     let wsId = sessionWSSessionIdCounter session + 1
@@ -97,9 +116,9 @@ initWSSession conn = do
     pure wsSessionId
 
 
-disconnectWSSession :: WSSessionId -> InMemory gs m ()
+disconnectWSSession :: WSSessionId -> InMemory r m ()
 disconnectWSSession wsId = do
-  tvar <- ask
+  tvar <- asks getter
   liftIO $ atomically $ do
     session <- readTVar tvar
     let newSession = session

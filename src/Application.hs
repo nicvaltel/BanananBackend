@@ -10,17 +10,19 @@ import Lib
 import WebSocketServer
 import Domain.Session
 import Control.Concurrent (threadDelay)
+import Data.Has (Has(getter))
+import qualified Data.Map.Strict as Map
 
-wsListener :: WSConnection -> WSSessionId -> App ()
+wsListener :: WSConnection -> WSSessionId -> App LibState ()
 wsListener conn wsId = do
     forever $ do
       msg <- liftIO $ receiveMessage conn
       pushInputMessage wsId msg
-      processMessages wsId
+      processMessages (\m gs -> (gs, m) ) wsId
     
-appLoop :: App ()
+appLoop :: App LibState ()
 appLoop = forever $ do
-  tvar <- ask
+  tvar <- asks getter
   wsIds <- liftIO $ atomically $ do
     session <- readTVar tvar
     let ids = sessionWSToSend session
@@ -34,10 +36,13 @@ runApp :: Port -> WSTimeout -> IO ()
 runApp port timeout = do
   session <- newTVarIO initialSession
 
-  let act = \conn wsId -> runSession session (wsListener conn wsId)
-  let initConnection = \conn -> runSession session (initWSSession conn)
-  let disconnect = \conn wsId -> runSession session (disconnectWSSession wsId)
+  let r = (session, Map.empty)
+
+  let act = \conn wsId -> runSession r (wsListener conn wsId)
+  let initConnection = \conn -> runSession r (initWSSession conn)
+  let disconnect = \conn wsId -> runSession r (disconnectWSSession wsId)
   _ <- forkIO $ startWebSocketServer port timeout act initConnection disconnect
   putStrLn $ "Starting WebSocket server on port " <> tshow port <> "..."  
 
-  runReaderT (unApp appLoop) session
+
+  runReaderT (unApp appLoop) r

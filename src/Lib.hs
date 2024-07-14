@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Lib where
 
@@ -7,15 +8,17 @@ import Reexport
 import Domain.Session
 import qualified Adapter.InMemory.Session as M
 import qualified Adapter.InMemory.WSServ as M
-import Adapter.InMemory.Type(MemState)
 import qualified Prelude
 import Domain.GameBot.GameModel (GameState)
+import qualified Data.Map.Strict as Map
 
 
-newtype App a = App { unApp :: ReaderT (MemState GameState) IO a  } deriving (Functor, Applicative, Monad, MonadReader (MemState GameState), MonadIO, MonadFail)
+type LibState = (TVar Session, Map WSSessionId (TVar GameState))
+
+newtype App r a = App { unApp :: ReaderT LibState IO a  } deriving (Functor, Applicative, Monad, MonadReader LibState, MonadIO, MonadFail)
 
 
-instance SessionRepo App where
+instance SessionRepo (App LibState) where
   newGuestSession = App M.newGuestSession
   newUserSession = App . M.newUserSession
   findUserIdBySessionId = App . M.findUserIdBySessionId
@@ -23,16 +26,16 @@ instance SessionRepo App where
   deleteUserSession = App . M.deleteUserSession
   deleteGuestSession = App . M.deleteGuestSession
 
-instance WSServ App where
+instance WSServ (App LibState) where
   initWSSession = App . M.initWSSession
   disconnectWSSession = App . M.disconnectWSSession
   sendOutMessage = App . M.sendOutMessage
   pushInputMessage wsId msg = App $ M.pushInputMessage wsId msg
-  processMessages = App . M.processMessages
+  processMessages f = App . M.processMessages f
 
-instance Bot App where
-  -- processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
-  processWSMessage msg gs = pure (gs, msg)
+-- instance Bot (App LibState) where
+--   -- processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
+--   processWSMessage msg gs = pure (gs, msg)
     
     -- App $ do
     --   st :: GameState <- get
@@ -41,16 +44,17 @@ instance Bot App where
     --   pure msgOut
 
 
-runSession :: MemState GameState -> App a -> IO a
+runSession :: LibState -> App LibState a -> IO a
 runSession state = flip runReaderT state . unApp
   
-runRoutine :: App () -> IO ()
+runRoutine :: App LibState () -> IO ()
 runRoutine routine = do 
   session <- newTVarIO initialSession
-  runSession session routine
+  let gameStates = Map.empty
+  runSession (session, gameStates) routine
   pure ()
 
-routine' :: App ()
+routine' :: App LibState ()
 routine' = do
   (gId1, sId1) <- newGuestSession
   (gId2, sId2) <- newGuestSession
