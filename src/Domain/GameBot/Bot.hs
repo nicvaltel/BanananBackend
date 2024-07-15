@@ -1,8 +1,10 @@
-module Domain.GameBot.Bot where
+module Domain.GameBot.Bot 
+  ( processOneWSMessage
+  ) where
 
 import Reexport
 import WebSocketServer (WSMessage)
-import Domain.GameBot.GameModel (AppMod)
+import Domain.GameBot.GameModel (AppMod, GameState)
 
 type BoxWidth = Float
 type BoxHeight = Float
@@ -10,10 +12,11 @@ type Diameter = Float
 type Y = Float
 
 
-
-
-processWSMessage :: WSMessage -> AppMod WSMessage
-processWSMessage msg = pure msg
+processOneWSMessage :: [WSMessage] -> WSMessage -> State GameState [WSMessage]
+processOneWSMessage outMsgs msg = do
+  gs <- get
+  put gs
+  pure (msg : outMsgs)
 
 
 -- addRandomBalls :: GameConfig -> Int -> BoxWidth -> Y -> AppGame Unit

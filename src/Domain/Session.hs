@@ -54,7 +54,7 @@ class Monad m => WSServ m where
   disconnectWSSession :: WSSessionId -> m ()
   sendOutMessage :: WSSessionId -> m ()
   pushInputMessage :: WSSessionId -> WSMessage -> m ()
-  processMessages :: (WSMessage -> GameState -> (GameState, WSMessage)) -> WSSessionId -> m ()
+  processMessages :: ([WSMessage] -> WSMessage -> State GameState [WSMessage]) -> WSSessionId -> m ()
 
 class Monad m => SessionRepo m where
   newGuestSession :: m (GuestId, SessionGuestId)
@@ -65,7 +65,7 @@ class Monad m => SessionRepo m where
   deleteGuestSession :: SessionGuestId -> m ()
 
 -- class Monad m => Bot m where
---   processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
+--   processWSMessage :: m ([WSMessage] -> WSMessage -> State GameState [WSMessage])
 
 -- instance Bot IO where  
---   processWSMessage msg gs = pure (gs, msg)
+--   processWSMessage = pure undefined

@@ -34,14 +34,14 @@ instance WSServ (App LibState) where
   processMessages f = App . M.processMessages f
 
 -- instance Bot (App LibState) where
---   -- processWSMessage :: WSMessage -> gs -> m (gs, WSMessage)
---   processWSMessage msg gs = pure (gs, msg)
-    
-    -- App $ do
-    --   st :: GameState <- get
-    --   let (msgOut, newSt) = runState (BOT.processWSMessage msg) st
-    --   put newSt
-    --   pure msgOut
+--   processWSMessage = 
+--     let f :: [WSMessage] -> WSMessage -> State GameState [WSMessage]
+--         f outMsgs msg = do
+--           gs <- get
+--           put gs
+--           pure (msg : outMsgs)
+--     in pure f
+
 
 
 runSession :: LibState -> App LibState a -> IO a

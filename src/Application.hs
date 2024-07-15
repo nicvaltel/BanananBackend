@@ -12,13 +12,15 @@ import Domain.Session
 import Control.Concurrent (threadDelay)
 import Data.Has (Has(getter))
 import qualified Data.Map.Strict as Map
+import Domain.GameBot.Bot (processOneWSMessage)
 
 wsListener :: WSConnection -> WSSessionId -> App LibState ()
 wsListener conn wsId = do
     forever $ do
       msg <- liftIO $ receiveMessage conn
       pushInputMessage wsId msg
-      processMessages (\m gs -> (gs, m) ) wsId
+      processMessages processOneWSMessage wsId
+
     
 appLoop :: App LibState ()
 appLoop = forever $ do

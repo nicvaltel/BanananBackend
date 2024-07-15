@@ -58,7 +58,7 @@ processMessagesEcho wsId = do
 
 
 
-processMessages :: (WSMessage -> GameState -> (GameState, WSMessage)) -> WSSessionId -> InMemory r m ()
+processMessages :: ([WSMessage] -> WSMessage -> State GameState [WSMessage]) -> WSSessionId -> InMemory r m ()
 processMessages processWSMsg wsId = do 
   tvar <- asks getter
   (msgs, tvarStates) <- liftIO $ atomically $ do
@@ -77,10 +77,12 @@ processMessages processWSMsg wsId = do
       Just tvSt -> do
         outMsgs <- liftIO $ atomically $ do
           gs <- readTVar tvSt
-          let (newGs :: GameState, outMsgs) = foldr 
-                  (\msg (gsAcc,outAcc)-> let (gs', out') = processWSMsg msg gsAcc in (gs', out' : outAcc)) 
-                  (gs,[]) 
-                  msgs
+          -- foldM :: (Foldable t, Monad m) => (b -> a -> m b) -> b -> t a -> m b
+          -- m :: State GameState
+          -- m b :: State GameState [WSMessage]
+          -- a :: WSMessage
+          -- b :: [WSMessage]
+          let (outMsgs, newGs) = runState (foldM processWSMsg [] (reverse msgs)) gs
           writeTVar tvSt  newGs
           pure outMsgs
 
@@ -95,10 +97,8 @@ processMessages processWSMsg wsId = do
                   { sessionWSChans = Map.insert wsId newChan chans
                   , sessionWSToSend = wsId : sessionWSToSend session
                   }
--- foldM 
---   (\(gsAcc, outAcc) msg -> processWSMessage msg gsAcc >>= \(gs', out') -> pure (gs', out' : outAcc)) 
---   (gs, []) 
---   (reverse inputMsgs)
+-- processWSMsg':: WSMessage -> GameState -> (GameState, WSMessage)
+-- let (newGs :: GameState, outMsgs) = foldr (\msg (gsAcc,outAcc)-> let (gs', out') = processWSMsg' msg gsAcc in (gs', out' : outAcc)) (gs,[]) msgs
 
 
 initWSSession :: WSConnection -> InMemory r m WSSessionId
