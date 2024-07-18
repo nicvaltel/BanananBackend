@@ -1,3 +1,5 @@
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
 module Domain.Session 
   -- ( SessionUserId(..)
   -- , SessionGuestId(..)
@@ -16,18 +18,20 @@ import WebSocketServer
 import Domain.GameBot.GameModel (GameState)
 
 
-newtype SessionUserId = SessionUserId Text deriving (Show, Eq, Ord)
-newtype SessionGuestId = SessionGuestId Text deriving (Show, Eq, Ord)
+newtype SessionId (u :: UserKind) = SessionId Text 
+  deriving (Show, Eq, Ord)
 newtype WSSessionId = WSSessionId Int deriving (Show, Eq, Ord)
 
 
 data Session = Session  
-  { sessionAllGuest :: Set GuestId
-  , sessionAllUsers :: Set UserId
-  , sessionActiveGuests :: Map SessionGuestId GuestId
-  , sessionActiveUsers :: Map SessionUserId UserId 
+  { sessionAllGuest :: Set (UserId 'Guest)
+  , sessionAllRegUsers :: Set (UserId 'Reg)
+  , sessionActiveGuests :: Map (SessionId 'Guest) (UserId 'Guest)
+  , sessionActiveRegUsers :: Map (SessionId 'Reg) (UserId 'Reg) 
+  , sessionActiveBots :: Map (SessionId 'Bot) (UserId 'Bot)
   , sessionGuestIdCounter :: Int
   , sessionUserIdCounter :: Int
+  , sessionBotIdCounter :: Int
   , sessionWSSessionIdCounter :: Int
   , sessionWSToSend :: [WSSessionId]
   , sessionWSChans :: Map WSSessionId WSChan
@@ -37,12 +41,14 @@ data Session = Session
 initialSession :: Session
 initialSession = Session
   { sessionAllGuest = mempty
-  , sessionAllUsers = mempty
+  , sessionAllRegUsers = mempty
   , sessionActiveGuests = mempty
-  , sessionActiveUsers = mempty
+  , sessionActiveRegUsers = mempty
+  , sessionActiveBots = mempty
   , sessionGuestIdCounter = 0
   , sessionUserIdCounter = 0
   , sessionWSSessionIdCounter = 0
+  , sessionBotIdCounter = 0
   , sessionWSToSend = mempty
   , sessionWSChans = mempty
   , sessionGameStates = mempty
@@ -57,15 +63,20 @@ class Monad m => WSServ m where
   processMessages :: ([WSMessage] -> WSMessage -> State GameState [WSMessage]) -> WSSessionId -> m ()
 
 class Monad m => SessionRepo m where
-  newGuestSession :: m (GuestId, SessionGuestId)
-  newUserSession :: UserId -> m SessionUserId
-  findUserIdBySessionId :: SessionUserId -> m (Maybe UserId)
-  findGuestIdBySessionId :: SessionGuestId -> m (Maybe GuestId)
-  deleteUserSession :: SessionUserId -> m ()
-  deleteGuestSession :: SessionGuestId -> m ()
+  newGuestSession :: m (UserId 'Guest, SessionId 'Guest)
+  newRegUserSession :: UserId 'Reg -> m (SessionId 'Reg)
+  findRegUserIdBySessionId :: SessionId 'Reg -> m (Maybe (UserId 'Reg))
+  findGuestIdBySessionId :: SessionId 'Guest -> m (Maybe (UserId 'Guest))
+  deleteRegUserSession :: SessionId 'Reg -> m ()
+  deleteGuestSession :: SessionId 'Guest -> m ()
 
--- class Monad m => Bot m where
---   processWSMessage :: m ([WSMessage] -> WSMessage -> State GameState [WSMessage])
+-- -- class Monad m => Bot m where
+-- --   processWSMessage :: m ([WSMessage] -> WSMessage -> State GameState [WSMessage])
 
--- instance Bot IO where  
---   processWSMessage = pure undefined
+-- -- instance Bot IO where  
+-- --   processWSMessage = pure undefined
+
+-- data GameRoom = GameRoom
+--   { gameRoomHost :: (AnySessionId, AnyUserId)
+--   , gameRoomGuest :: Int
+--   }

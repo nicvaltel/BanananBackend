@@ -20,10 +20,10 @@ newtype App r a = App { unApp :: ReaderT LibState IO a  } deriving (Functor, App
 
 instance SessionRepo (App LibState) where
   newGuestSession = App M.newGuestSession
-  newUserSession = App . M.newUserSession
-  findUserIdBySessionId = App . M.findUserIdBySessionId
+  newRegUserSession = App . M.newRegUserSession
+  findRegUserIdBySessionId = App . M.findRegUserIdBySessionId
   findGuestIdBySessionId = App . M.findGuestIdBySessionId
-  deleteUserSession = App . M.deleteUserSession
+  deleteRegUserSession = App . M.deleteRegUserSession
   deleteGuestSession = App . M.deleteGuestSession
 
 instance WSServ (App LibState) where

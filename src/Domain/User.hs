@@ -1,18 +1,11 @@
-module Domain.User
-  ( UserId (..)
-  , GuestId(..)
-  , AnyUser(..)
-  ) where
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+module Domain.User where
 
 import Reexport
 
-newtype UserId = UserId {unUserId :: Int} deriving (Show, Eq, Ord)
 
-newtype GuestId = GuestId {unGuestId :: Int} deriving (Show, Eq, Ord)
+data UserKind = Reg | Guest | Bot
 
-
-data AnyUser = 
-    Guest GuestId
-  | RegUser UserId
+newtype UserId (u :: UserKind) = UserId Int
   deriving (Show, Eq, Ord)
-
