@@ -19,19 +19,19 @@ newtype App r a = App { unApp :: ReaderT LibState IO a  } deriving (Functor, App
 
 
 instance SessionRepo (App LibState) where
-  newGuestSession = App M.newGuestSession
-  newRegUserSession = App . M.newRegUserSession
-  findRegUserIdBySessionId = App . M.findRegUserIdBySessionId
-  findGuestIdBySessionId = App . M.findGuestIdBySessionId
-  deleteRegUserSession = App . M.deleteRegUserSession
-  deleteGuestSession = App . M.deleteGuestSession
+  newGuestSession = M.newGuestSession
+  newRegUserSession = M.newRegUserSession
+  findRegUserIdBySessionId = M.findRegUserIdBySessionId
+  findGuestIdBySessionId = M.findGuestIdBySessionId
+  deleteRegUserSession = M.deleteRegUserSession
+  deleteGuestSession = M.deleteGuestSession
 
 instance WSServ (App LibState) where
-  initWSSession = App . M.initWSSession
-  disconnectWSSession = App . M.disconnectWSSession
-  sendOutMessage = App . M.sendOutMessage
-  pushInputMessage wsId msg = App $ M.pushInputMessage wsId msg
-  processMessages f = App . M.processMessages f
+  initWSSession = M.initWSSession
+  disconnectWSSession = M.disconnectWSSession
+  sendOutMessage = M.sendOutMessage
+  pushInputMessage = M.pushInputMessage
+  processMessages = M.processMessages
 
 -- instance Bot (App LibState) where
 --   processWSMessage = 

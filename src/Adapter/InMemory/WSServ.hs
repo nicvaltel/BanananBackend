@@ -13,7 +13,7 @@ import Data.Has (Has(getter))
 import Domain.GameBot.GameModel (GameState, initialGameState)
 
 
-sendOutMessage :: WSSessionId -> InMemory r m ()
+sendOutMessage :: InMemory r m => WSSessionId -> m ()
 sendOutMessage wsId = do
   tvar :: TVar Session <- asks getter
   mayMsg <- liftIO $ atomically $ do
@@ -31,7 +31,7 @@ sendOutMessage wsId = do
     Nothing -> pure ()
     Just (msg, conn) -> liftIO $ WS.sendTextData conn msg 
 
-pushInputMessage :: WSSessionId -> WSMessage -> InMemory r m ()
+pushInputMessage :: InMemory r m => WSSessionId -> WSMessage -> m ()
 pushInputMessage wsId msg = do
   tvar <- asks getter 
   liftIO $ atomically $ do
@@ -42,7 +42,7 @@ pushInputMessage wsId msg = do
       Just chan -> writeTVar tvar session{sessionWSChans = Map.insert wsId (pushWSIn msg chan) chans}  
       
 
-processMessagesEcho :: WSSessionId -> InMemory r m ()
+processMessagesEcho :: InMemory r m => WSSessionId -> m ()
 processMessagesEcho wsId = do
   tvar <- asks getter
   liftIO $ atomically $ do
@@ -58,7 +58,7 @@ processMessagesEcho wsId = do
 
 
 
-processMessages :: ([WSMessage] -> WSMessage -> State GameState [WSMessage]) -> WSSessionId -> InMemory r m ()
+processMessages :: InMemory r m => ([WSMessage] -> WSMessage -> State GameState [WSMessage]) -> WSSessionId -> m ()
 processMessages processWSMsg wsId = do 
   tvar <- asks getter
   (msgs, tvarStates) <- liftIO $ atomically $ do
@@ -101,7 +101,7 @@ processMessages processWSMsg wsId = do
 -- let (newGs :: GameState, outMsgs) = foldr (\msg (gsAcc,outAcc)-> let (gs', out') = processWSMsg' msg gsAcc in (gs', out' : outAcc)) (gs,[]) msgs
 
 
-initWSSession :: WSConnection -> InMemory r m WSSessionId
+initWSSession :: InMemory r m => WSConnection -> m WSSessionId
 initWSSession conn = do
   tvar <- asks getter
   gameState <- liftIO $ newTVarIO initialGameState
@@ -118,7 +118,7 @@ initWSSession conn = do
     pure wsSessionId
 
 
-disconnectWSSession :: WSSessionId -> InMemory r m ()
+disconnectWSSession :: InMemory r m => WSSessionId -> m ()
 disconnectWSSession wsId = do
   tvar <- asks getter
   liftIO $ atomically $ do
