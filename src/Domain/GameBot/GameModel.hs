@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# OPTIONS_GHC -F -pgmF=record-dot-preprocessor #-}
 module Domain.GameBot.GameModel where
 
 
@@ -7,6 +8,9 @@ import Reexport
 import Domain.GameBot.Actors
 import Domain.GameBot.GraphBall
 import qualified Data.Map.Strict as M
+import Domain.GameBot.GameConfig (GameConfig, defaultGameConfig)
+import System.Random(StdGen, mkStdGen)
+import Text.Printf (printf)
 
 
 type AppMod a = State GameState a
@@ -49,6 +53,27 @@ emptyGSActors = GSActors {
 data GSBoards = GSBoards {board :: Board, remoteBoard :: Board}
   deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
 
+data GSSys = GSSys {
+    gameStepNumber :: Int
+  , lastUpdateTime :: Double
+  , lastActorId :: Int
+  , seed :: StdGen
+  } 
+
+instance Show GSSys where
+  show GSSys{
+      gameStepNumber
+    , lastUpdateTime
+    , lastActorId
+    } = printf "GSSys{gameStepNumber = %d, lastUpdateTime = %f, lastActorId = %d}" gameStepNumber lastUpdateTime lastActorId
+
+initialGSSys = GSSys {
+    gameStepNumber = 0
+  , lastUpdateTime = 0
+  , lastActorId = 0
+  , seed = mkStdGen 0
+}
+
 data GameState = GameState {
       gameStepNumber :: Int
     , score :: Int
@@ -62,6 +87,8 @@ data GameState = GameState {
     , remoteActors :: GSActors
     , graphBall :: GraphBall
     , boards :: GSBoards
+    , sys :: GSSys
+    , gameConfig :: GameConfig
   } deriving (Show)
 
 initialGameState :: GameState
@@ -78,13 +105,19 @@ initialGameState = GameState {
   , remoteActors = emptyGSActors
   , graphBall = []
   , boards = GSBoards emptyBoard emptyBoard
+  , sys = initialGSSys
+  , gameConfig = defaultGameConfig
 }
+
 
 modgs :: (GameState -> GameState) -> AppMod ()
 modgs = modify
 
-
-
+mkNewNameId :: AppMod NameId
+mkNewNameId = do
+  m <- get
+  modgs $ \gs -> gs{sys = gs.sys{lastActorId = gs.sys.lastActorId + 1}}
+  pure (NameId ("ac_" <> show m.sys.lastActorId))
 
 class ActorContainer ac where
   getAllActors :: GameState -> [Actor ac]

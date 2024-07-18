@@ -30,6 +30,9 @@ dependencies:
 - string-random
 - aeson
 - bytestring
+# - record-dot-preprocessor
+- record-hasfield
+- random
 
 
 default-extensions:

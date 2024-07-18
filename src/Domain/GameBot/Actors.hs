@@ -1,12 +1,13 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# OPTIONS_GHC -F -pgmF=record-dot-preprocessor #-}
 module Domain.GameBot.Actors 
   ( Gun(..)
   , Ball(..)
   , Dragon(..)
   , BallQueue(..)
   , gunMock
-  , BallColor
+  , BallColor(..)
   , colorFromRandomInt
   , dragonMock
   , ballQueueMock

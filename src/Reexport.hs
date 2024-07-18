@@ -23,6 +23,8 @@ module Reexport
   , module GHC.Generics
   , module Control.Monad.State 
   , module Control.Monad.RWS
+  , module GHC.Records.Extra
+  , module Data.Function
   ) where
 
 
@@ -50,3 +52,5 @@ import Data.Aeson (FromJSON(..), ToJSON(..), FromJSONKey(..), ToJSONKey(..), Val
 import GHC.Generics (Generic)
 import Control.Monad.State (State, modify , get, put, gets, runState)
 import Control.Monad.RWS (RWST, runRWST, evalRWST)
+import GHC.Records.Extra
+import Data.Function ((&))
