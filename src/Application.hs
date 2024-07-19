@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant lambda" #-}
 {-# HLINT ignore "Avoid lambda" #-}
-module Application where
+module Application (runApp) where
 
 
 import Reexport
@@ -14,6 +14,8 @@ import qualified Adapter.InMemory.Server as Mem
 import qualified Domain.GameBot.Bot as Bot
 
 
+type WSThreadDelayMs = Int -- in milliseconds
+
 wsListener :: WSConnection -> D.SessionId -> App AppState ()
 wsListener conn wsId = do
     forever $ do
@@ -22,21 +24,15 @@ wsListener conn wsId = do
       D.processMessages Bot.processOneWSMessage wsId
 
 
-appLoop :: App AppState ()
-appLoop = forever $ do
-  tvar <- asks getter
-  wsIds <- liftIO $ atomically $ do
-    ss <- readTVar tvar
-    let ids = Mem.serverWSToSend ss
-    writeTVar tvar ss{Mem.serverWSToSend = []}  -- TODO make function in Server class for it
-    pure ids
-  traverse_ D.sendOutMessage wsIds
-  liftIO $ threadDelay 10_000
+appLoop :: WSThreadDelayMs -> App AppState ()
+appLoop wsThreadDelayMs = forever $ do
+  D.sendOutAllMessages
+  liftIO $ threadDelay wsThreadDelayMs -- e.g. 10_000 ms
 
 
-runApp :: Port -> WSTimeout -> IO ()
-runApp port timeout = do
-  ss <- newTVarIO Mem.initialServerState -- TODO make function in Server class for it
+runApp :: Port -> WSTimeout -> WSThreadDelayMs -> IO ()
+runApp port timeout wsThreadDelayMs = do
+  ss <- newTVarIO Mem.initialServerState
 
   let r = ss
 
@@ -45,4 +41,5 @@ runApp port timeout = do
   let disconnect = \conn sId -> runSession r (D.disconnectSession sId)
   _ <- forkIO $ startWebSocketServer port timeout act initConnection disconnect
   putStrLn $ "Starting WebSocket server on port " <> tshow port <> "..."  
-  runReaderT (unApp appLoop) r
+  runReaderT (unApp (appLoop wsThreadDelayMs)) r
+  

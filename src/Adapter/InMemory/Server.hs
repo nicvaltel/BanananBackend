@@ -1,7 +1,18 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Adapter.InMemory.Server where
+module Adapter.InMemory.Server 
+  ( ServerState
+  , initialServerState
+  , initSession
+  , disconnectSession
+  , addGameToLobby
+  , startGame
+  , sendOutMessage
+  , pushInputMessage
+  , processMessages
+  , sendOutAllMessages
+  ) where
 
 import qualified Domain.Server as D
 
@@ -194,3 +205,13 @@ processMessages processWSMsg sId = do
                   { serverWSChans = Map.insert sId newChan chans
                   , serverWSToSend = sId : serverWSToSend session
                   }
+
+sendOutAllMessages :: InMemory r m => m ()
+sendOutAllMessages = do
+  tvar <- asks getter
+  sIds <- liftIO $ atomically $ do
+    ss <- readTVar tvar
+    let ids = serverWSToSend ss
+    writeTVar tvar ss{serverWSToSend = []}
+    pure ids
+  traverse_ sendOutMessage sIds

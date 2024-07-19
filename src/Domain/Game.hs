@@ -1,4 +1,7 @@
-module Domain.Game where
+module Domain.Game
+  ( GameType(..)
+
+  ) where
 
 import Reexport
 

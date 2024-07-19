@@ -2,8 +2,12 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-
-module Lib where
+module Lib 
+  ( App(..)
+  , AppState
+  , runSession
+  , runRoutine
+  ) where
 
 import Reexport
 import Domain.Server
@@ -16,15 +20,17 @@ newtype App r a = App { unApp :: ReaderT AppState IO a  }
   deriving (Functor, Applicative, Monad, MonadReader AppState, MonadIO, MonadFail)
 
 
-instance Server (App AppState) where
+instance ServerRepo (App AppState) where
   initSession = Mem.initSession
   disconnectSession = Mem.disconnectSession
   sendOutMessage = Mem.sendOutMessage
   pushInputMessage = Mem.pushInputMessage
   processMessages = Mem.processMessages
+  sendOutAllMessages = Mem.sendOutAllMessages
+
+instance GameRepo (App AppState) where
   addGameToLobby = Mem.addGameToLobby
   startGame = Mem.startGame
-
 
 
 runSession :: AppState -> App AppState a -> IO a
