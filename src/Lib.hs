@@ -22,6 +22,7 @@ newtype App r a = App { unApp :: ReaderT AppState IO a  }
 
 instance ServerRepo (App AppState) where
   initSession = Mem.initSession
+  initGuestSession = Mem.initGuestSession
   disconnectSession = Mem.disconnectSession
   sendOutMessage = Mem.sendOutMessage
   pushInputMessage = Mem.pushInputMessage

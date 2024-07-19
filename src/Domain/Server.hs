@@ -62,6 +62,7 @@ data GameRoom = GameRoom
 
 class Monad m => ServerRepo m where
   initSession :: WSConnection -> UserId -> m SessionId
+  initGuestSession :: WSConnection -> m SessionId
   disconnectSession :: SessionId -> m ()
   pushInputMessage :: SessionId -> WSMessage -> m ()
   processMessages :: ([WSMessage] -> WSMessage -> State G.GameState [WSMessage]) -> SessionId -> m ()

@@ -37,7 +37,7 @@ runApp port timeout wsThreadDelayMs = do
   let r = ss
 
   let act = \conn wsId -> runSession r (wsListener conn wsId)
-  let initConnection = \conn -> runSession r (D.initSession conn (D.RegUserId 666)) -- TODO implement UserId generator
+  let initConnection = \conn -> runSession r (D.initGuestSession conn) -- TODO implement initSession not only for Guests, but for Reg users
   let disconnect = \conn sId -> runSession r (D.disconnectSession sId)
   _ <- forkIO $ startWebSocketServer port timeout act initConnection disconnect
   putStrLn $ "Starting WebSocket server on port " <> tshow port <> "..."  

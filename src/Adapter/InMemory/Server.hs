@@ -12,6 +12,7 @@ module Adapter.InMemory.Server
   , pushInputMessage
   , processMessages
   , sendOutAllMessages
+  , initGuestSession
   ) where
 
 import qualified Domain.Server as D
@@ -31,8 +32,9 @@ data ServerState = ServerState {
     serverSessions :: Map D.SessionId (D.UserId, D.SessionData)
   , serverLobby :: Map GameType (Set D.SessionId)
   , serverActiveGames :: Map D.GameRoomId D.GameRoom
-  , serverSessionIdCounter :: Int -- common for all UserTypes
-  , serverGameRoomIdCounter :: Int
+  , serverUserIdCounter :: D.UserIdx
+  , serverSessionIdCounter :: D.SessionIdx -- common for all UserTypes
+  , serverGameRoomIdCounter :: D.GameRoomId
   , serverWSToSend :: [D.SessionId]
   , serverWSChans :: Map D.SessionId WS.WSChan
   , serverGameStates :: Map D.SessionId (TVar G.GameState)
@@ -44,6 +46,7 @@ initialServerState = ServerState {
     serverSessions = mempty
   , serverLobby = mempty
   , serverActiveGames = mempty
+  , serverUserIdCounter = 0
   , serverSessionIdCounter = 0
   , serverGameRoomIdCounter = 0
   , serverWSToSend = mempty
@@ -51,6 +54,28 @@ initialServerState = ServerState {
   , serverGameStates = mempty
 }
 
+initGuestSession :: InMemory r m => WSConnection -> m D.SessionId
+initGuestSession conn = do
+  tvar <- asks getter
+  gameState <- liftIO $ newTVarIO G.initialGameState
+  liftIO $ atomically $ do
+    ss <- readTVar tvar
+    let uId = serverUserIdCounter ss + 1
+    let userId = D.GuestUserId uId
+    let sId = serverSessionIdCounter ss + 1
+    let sessionId = D.GuestSessionId sId
+    let newSessions = Map.insert sessionId (userId, D.defaultSessionData) (serverSessions ss)
+    let newWSChans = Map.insert sessionId (WS.emptyWSChan conn) (serverWSChans ss)
+    let newGameStates = Map.insert sessionId gameState (serverGameStates ss)
+    let newSession = ss 
+          { serverUserIdCounter = uId 
+          , serverSessionIdCounter = sId
+          , serverSessions = newSessions
+          , serverWSChans = newWSChans
+          , serverGameStates = newGameStates 
+          }
+    writeTVar tvar newSession
+    pure sessionId
 
 initSession :: InMemory r m => WSConnection -> D.UserId -> m D.SessionId
 initSession conn userId = do
