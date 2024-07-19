@@ -17,24 +17,19 @@ module WebSocketServer
     startWebSocketServer,
     receiveMessage,
     runEcho,
+    sendTextData,
   )
 where
 
-import Network.WebSockets
 import qualified Network.WebSockets as WS
 import Reexport
-import ClassyPrelude (timeout)
-
-
-type WSConnection = WS.Connection
-
-type WSMessage = Text
+import Domain.Server (WSConnection, WSMessage)
 
 type Port = Int
 
 type WSTimeout = Int -- in milliseconds
 
-type WSConnectionAct a = WS.Connection -> IO a
+type WSConnectionAct a = WSConnection -> IO a
 
 data WSChan = WSChan
   { wschanConn :: WSConnection,
@@ -66,12 +61,12 @@ receiveMessage = WS.receiveData
 
 webSocketServer ::
   WSTimeout ->
-  (WS.Connection -> wsid -> IO ()) ->
-  (WS.Connection -> IO wsid) ->
-  (WS.Connection -> wsid -> IO ()) ->
+  (WSConnection -> wsid -> IO ()) ->
+  (WSConnection -> IO wsid) ->
+  (WSConnection -> wsid -> IO ()) ->
   WS.ServerApp
 webSocketServer timeout act initConnection disconnect = \pendingConn -> do
-  conn <- acceptRequest pendingConn
+  conn <- WS.acceptRequest pendingConn
   wsId <- initConnection conn
   WS.withPingThread conn timeout (pure ()) $ do -- default timeout = 30ms
     finally
@@ -81,19 +76,24 @@ webSocketServer timeout act initConnection disconnect = \pendingConn -> do
 startWebSocketServer ::
   Port ->
   WSTimeout ->
-  (WS.Connection -> wsid -> IO ()) ->
-  (WS.Connection -> IO wsid) ->
-  (WS.Connection -> wsid -> IO ()) ->
+  (WSConnection -> wsid -> IO ()) ->
+  (WSConnection -> IO wsid) ->
+  (WSConnection -> wsid -> IO ()) ->
   IO ()
 startWebSocketServer port timeout act initConnection disconnect = do
   WS.runServer "0.0.0.0" port (webSocketServer timeout act initConnection disconnect)
 
+sendTextData :: WSConnection -> Text -> IO ()
+sendTextData = WS.sendTextData
+
+
 -- WS handle connection exceptions
-catchConnectionException :: Connection -> IO ()
+catchConnectionException :: WS.Connection -> IO ()
 catchConnectionException conn = do
   catch
-    (receiveDataMessage conn >> pure ()) -- Attempt to receive data (use your specific logic here)
-    (\(_ :: ConnectionException) -> pure ()) -- Handle connection exceptions
+    (WS.receiveDataMessage conn >> pure ()) -- Attempt to receive data (use your specific logic here)
+    (\(_ :: WS.ConnectionException) -> pure ()) -- Handle connection exceptions
+
 
 
 ------------ SIMPLE WebSocketServer Example -----------
@@ -102,7 +102,7 @@ simpleWebSocketServer ::
   (WS.Connection -> IO ()) ->
   WS.ServerApp
 simpleWebSocketServer act = \pendingConn -> do
-  conn <- acceptRequest pendingConn
+  conn <- WS.acceptRequest pendingConn
   WS.withPingThread conn 30 (pure ()) $ do
     finally
       (act conn)

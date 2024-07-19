@@ -25,6 +25,7 @@ module Reexport
   , module Control.Monad.RWS
   , module GHC.Records.Extra
   , module Data.Function
+  , module Data.Has
   ) where
 
 
@@ -54,3 +55,4 @@ import Control.Monad.State (State, modify , get, put, gets, runState)
 import Control.Monad.RWS (RWST, runRWST, evalRWST)
 import GHC.Records.Extra
 import Data.Function ((&))
+import Data.Has (Has, getter)

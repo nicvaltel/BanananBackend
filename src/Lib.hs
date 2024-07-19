@@ -1,83 +1,37 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 
 module Lib where
 
 import Reexport
-import Domain.Session
-import qualified Adapter.InMemory.Session as M
-import qualified Adapter.InMemory.WSServ as M
-import qualified Prelude
-import Domain.GameBot.GameModel (GameState)
-import qualified Data.Map.Strict as Map
+import Domain.Server
+import qualified Adapter.InMemory.Server as Mem
 
 
-type LibState = (TVar Session, Map WSSessionId (TVar GameState))
+type AppState = TVar Mem.ServerState
 
-newtype App r a = App { unApp :: ReaderT LibState IO a  } deriving (Functor, Applicative, Monad, MonadReader LibState, MonadIO, MonadFail)
+newtype App r a = App { unApp :: ReaderT AppState IO a  } 
+  deriving (Functor, Applicative, Monad, MonadReader AppState, MonadIO, MonadFail)
 
 
-instance SessionRepo (App LibState) where
-  newGuestSession = M.newGuestSession
-  newRegUserSession = M.newRegUserSession
-  findRegUserIdBySessionId = M.findRegUserIdBySessionId
-  findGuestIdBySessionId = M.findGuestIdBySessionId
-  deleteRegUserSession = M.deleteRegUserSession
-  deleteGuestSession = M.deleteGuestSession
-
-instance WSServ (App LibState) where
-  initWSSession = M.initWSSession
-  disconnectWSSession = M.disconnectWSSession
-  sendOutMessage = M.sendOutMessage
-  pushInputMessage = M.pushInputMessage
-  processMessages = M.processMessages
-
--- instance Bot (App LibState) where
---   processWSMessage = 
---     let f :: [WSMessage] -> WSMessage -> State GameState [WSMessage]
---         f outMsgs msg = do
---           gs <- get
---           put gs
---           pure (msg : outMsgs)
---     in pure f
+instance Server (App AppState) where
+  initSession = Mem.initSession
+  disconnectSession = Mem.disconnectSession
+  sendOutMessage = Mem.sendOutMessage
+  pushInputMessage = Mem.pushInputMessage
+  processMessages = Mem.processMessages
+  addGameToLobby = Mem.addGameToLobby
+  startGame = Mem.startGame
 
 
 
-runSession :: LibState -> App LibState a -> IO a
+runSession :: AppState -> App AppState a -> IO a
 runSession state = flip runReaderT state . unApp
   
-runRoutine :: App LibState () -> IO ()
+runRoutine :: App AppState () -> IO ()
 runRoutine routine = do 
-  session <- newTVarIO initialSession
-  let gameStates = Map.empty
-  runSession (session, gameStates) routine
+  ss <- newTVarIO Mem.initialServerState
+  runSession ss routine
   pure ()
-
-routine' :: App LibState ()
-routine' = do
-  (gId1, sId1) <- newGuestSession
-  (gId2, sId2) <- newGuestSession
-  gf1 <- findGuestIdBySessionId sId1
-  (gId3, sId3) <- newGuestSession
-  deleteGuestSession sId2
-  gf3 <- findGuestIdBySessionId sId3
-  gf2 <- findGuestIdBySessionId sId2
-  deleteGuestSession sId1
-  gf1' <- findGuestIdBySessionId sId1
-  gf3' <- findGuestIdBySessionId sId3
-  let results = 
-        [ show gId1,
-          show sId1,
-          show gId2,
-          show sId2,
-          show gf1,
-          show gId3,
-          show sId3,
-          show gf3,
-          show gf2,
-          show gf1',
-          show gf3'
-        ]
-  liftIO $ traverse_ Prelude.putStrLn results
-

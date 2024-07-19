@@ -1,4 +1,6 @@
 .stack-work/
 dist-newstyle/
 dest/
+src/HSPG/
+**/*.env
 *~

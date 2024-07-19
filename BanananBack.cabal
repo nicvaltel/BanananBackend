@@ -24,20 +24,20 @@ source-repository head
 
 library
   exposed-modules:
-      Adapter.InMemory.Session
-      Adapter.InMemory.Type
-      Adapter.InMemory.WSServ
+      Adapter.InMemory.Server
       Application
       Config
+      Domain.Game
       Domain.GameBot.Actors
       Domain.GameBot.Bot
       Domain.GameBot.GameConfig
       Domain.GameBot.GameModel
       Domain.GameBot.GraphBall
       Domain.GameBot.Server
-      Domain.Session
-      Domain.User
+      Domain.Server
       Domain.Validation
+      HSPG.Temp
+      HSPG.TempKind
       Lib
       Reexport
       WebSocketServer

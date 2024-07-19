@@ -1,8 +1,6 @@
 module Config where
 
 import Reexport
-import GHC.Generics (Generic)
-
 
 data Config = Config 
   { port :: Int
