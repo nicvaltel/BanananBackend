@@ -41,6 +41,7 @@ dependencies:
 - wai
 - wai-extra
 - wai-middleware-static
+- warp
 - time
 
 

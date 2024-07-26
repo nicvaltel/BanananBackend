@@ -13,11 +13,12 @@ import Control.Concurrent (threadDelay)
 import qualified Domain.Server as D
 import qualified Adapter.InMemory.Server as Mem
 import qualified Domain.GameBot.Bot as Bot
+import qualified Adapter.HTTP.Main as HTTP
 
 
 type WSThreadDelayMs = Int -- in milliseconds
 
-wsListener :: WSConnection -> D.SessionId -> App AppState ()
+wsListener :: WSConnection -> D.SessionId -> App ()
 wsListener conn wsId = do
     forever $ do
       msg <- liftIO $ receiveMessage conn
@@ -25,7 +26,7 @@ wsListener conn wsId = do
       D.processMessages Bot.processOneWSMessage wsId
 
 
-appLoop :: WSThreadDelayMs -> App AppState ()
+appLoop :: WSThreadDelayMs -> App ()
 appLoop wsThreadDelayMs = forever $ do
   D.sendOutAllMessages
   liftIO $ threadDelay wsThreadDelayMs -- e.g. 10_000 ms
@@ -41,6 +42,9 @@ runApp port timeout wsThreadDelayMs = do
   let initConnection = \conn -> runSession r (D.initGuestSession conn) -- TODO implement initSession not only for Guests, but for Reg users
   let disconnect = \conn sId -> runSession r (D.disconnectSession sId)
   _ <- forkIO $ startWebSocketServer port timeout act initConnection disconnect
-  putStrLn $ "Starting WebSocket server on port " <> tshow port <> "..."  
-  runReaderT (unApp (appLoop wsThreadDelayMs)) r
+  putStrLn $ "Starting WebSocket server on port " <> tshow port <> "..."
+
+  let appRunner =  runSession r
+  HTTP.main 3000 appRunner
+  -- runReaderT (unApp (appLoop wsThreadDelayMs)) r
   

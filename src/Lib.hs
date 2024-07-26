@@ -14,13 +14,14 @@ import ClassyPrelude
 import Domain.Server
 import qualified Adapter.InMemory.Server as Mem
 
+
 type AppState = TVar Mem.ServerState
 
-newtype App r a = App { unApp :: ReaderT AppState IO a  } 
-  deriving (Functor, Applicative, Monad, MonadReader AppState, MonadIO, MonadFail)
+newtype App a = App { unApp :: ReaderT AppState IO a  } 
+  deriving (Functor, Applicative, Monad, MonadReader AppState, MonadIO, MonadFail, MonadUnliftIO)
 
 
-instance SessionRepo (App AppState) where
+instance SessionRepo App where
   initSession = Mem.initSession
   initGuestSession = Mem.initGuestSession
   disconnectSession = Mem.disconnectSession
@@ -30,15 +31,15 @@ instance SessionRepo (App AppState) where
   sendOutAllMessages = Mem.sendOutAllMessages
   findUserIdBySessionId = undefined
 
-instance GameRepo (App AppState) where
+instance GameRepo App where
   addGameToLobby = Mem.addGameToLobby
   startGame = Mem.startGame
 
 
-runSession :: AppState -> App AppState a -> IO a
+runSession :: AppState -> App a -> IO a
 runSession state = flip runReaderT state . unApp
   
-runRoutine :: App AppState () -> IO ()
+runRoutine :: App () -> IO ()
 runRoutine routine = do 
   ss <- newTVarIO Mem.initialServerState
   runSession ss routine
