@@ -8,11 +8,13 @@ module Domain.Server
   , SessionIdHost
   , SessionIdGuest
   , GameRoom(..)
-  , GameRoomId
+  , GameRoomIdx
+  , GameRoomId(..)
   , SessionData(..)
-  , ServerRepo(..)
+  , SessionRepo(..)
   , GameRepo(..)
   , defaultSessionData
+  , resolveSessionId
   ) where
 
 
@@ -29,6 +31,8 @@ type WSMessage = Text
 type UserIdx = Int
 
 type SessionIdx = Int
+newtype SessionId = SessionId {unSessionId :: SessionIdx}
+  deriving (Show, Eq, Ord)
 
 data UserId = 
       RegUserId UserIdx
@@ -36,23 +40,22 @@ data UserId =
     | BotUserId UserIdx
       deriving (Show, Eq, Ord)
 
-data SessionId =
-    RegSessionId SessionIdx
-  | GuestSessionId SessionIdx
-  | BotSessionId SessionIdx
-      deriving (Show, Eq, Ord)  
-
 type SessionIdHost = SessionId
 
 type SessionIdGuest = SessionId
 
-type GameRoomId = Int
-
-data SessionData = SessionData
+type GameRoomIdx = Int
+newtype GameRoomId = GameRoomId {unGameRoomId :: GameRoomIdx}
   deriving (Show, Eq, Ord)
 
-defaultSessionData :: SessionData
-defaultSessionData = SessionData
+data SessionData = SessionData {
+    sessionDataUserId :: UserId
+} deriving (Show, Eq, Ord)
+
+defaultSessionData :: UserId -> SessionData 
+defaultSessionData userId = SessionData {
+  sessionDataUserId = userId
+}
 
 data GameRoom = GameRoom
   { gameRoomGameType :: GameType
@@ -60,7 +63,7 @@ data GameRoom = GameRoom
   , gameRoomGuest :: SessionId
   } deriving (Show, Eq, Ord)
 
-class Monad m => ServerRepo m where
+class Monad m => SessionRepo m where
   initSession :: WSConnection -> UserId -> m SessionId
   initGuestSession :: WSConnection -> m SessionId
   disconnectSession :: SessionId -> m ()
@@ -68,7 +71,12 @@ class Monad m => ServerRepo m where
   processMessages :: ([WSMessage] -> WSMessage -> State G.GameState [WSMessage]) -> SessionId -> m ()
   sendOutMessage :: SessionId -> m ()
   sendOutAllMessages :: m ()
-  
+  findUserIdBySessionId :: SessionId -> m (Maybe UserId)
+
 class Monad m => GameRepo m where
   addGameToLobby :: SessionId -> GameType -> m ()
   startGame :: SessionIdHost -> SessionIdGuest -> GameType -> m GameRoomId
+
+
+resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
+resolveSessionId = findUserIdBySessionId

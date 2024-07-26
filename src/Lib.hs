@@ -20,7 +20,7 @@ newtype App r a = App { unApp :: ReaderT AppState IO a  }
   deriving (Functor, Applicative, Monad, MonadReader AppState, MonadIO, MonadFail)
 
 
-instance ServerRepo (App AppState) where
+instance SessionRepo (App AppState) where
   initSession = Mem.initSession
   initGuestSession = Mem.initGuestSession
   disconnectSession = Mem.disconnectSession
@@ -28,6 +28,7 @@ instance ServerRepo (App AppState) where
   pushInputMessage = Mem.pushInputMessage
   processMessages = Mem.processMessages
   sendOutAllMessages = Mem.sendOutAllMessages
+  findUserIdBySessionId = undefined
 
 instance GameRepo (App AppState) where
   addGameToLobby = Mem.addGameToLobby

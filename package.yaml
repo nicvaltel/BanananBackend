@@ -33,6 +33,15 @@ dependencies:
 # - record-dot-preprocessor
 - record-hasfield
 - random
+- scotty
+- blaze-html
+# - blaze-builder
+- cookie
+- http-types
+- wai
+- wai-extra
+- wai-middleware-static
+- time
 
 
 default-extensions:

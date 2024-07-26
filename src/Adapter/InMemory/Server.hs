@@ -29,12 +29,12 @@ import qualified Domain.GameBot.GameModel as G
 type InMemory r m = (Has (TVar ServerState) r, MonadReader r m, MonadIO m)
 
 data ServerState = ServerState {
-    serverSessions :: Map D.SessionId (D.UserId, D.SessionData)
+    serverSessions :: Map D.SessionId D.SessionData
   , serverLobby :: Map GameType (Set D.SessionId)
   , serverActiveGames :: Map D.GameRoomId D.GameRoom
   , serverUserIdCounter :: D.UserIdx
   , serverSessionIdCounter :: D.SessionIdx -- common for all UserTypes
-  , serverGameRoomIdCounter :: D.GameRoomId
+  , serverGameRoomIdCounter :: D.GameRoomIdx
   , serverWSToSend :: [D.SessionId]
   , serverWSChans :: Map D.SessionId WS.WSChan
   , serverGameStates :: Map D.SessionId (TVar G.GameState)
@@ -63,8 +63,8 @@ initGuestSession conn = do
     let uId = serverUserIdCounter ss + 1
     let userId = D.GuestUserId uId
     let sId = serverSessionIdCounter ss + 1
-    let sessionId = D.GuestSessionId sId
-    let newSessions = Map.insert sessionId (userId, D.defaultSessionData) (serverSessions ss)
+    let sessionId = D.SessionId sId
+    let newSessions = Map.insert sessionId (D.defaultSessionData userId) (serverSessions ss)
     let newWSChans = Map.insert sessionId (WS.emptyWSChan conn) (serverWSChans ss)
     let newGameStates = Map.insert sessionId gameState (serverGameStates ss)
     let newSession = ss 
@@ -84,11 +84,8 @@ initSession conn userId = do
   liftIO $ atomically $ do
     ss <- readTVar tvar
     let sId = serverSessionIdCounter ss + 1
-    let sessionId = case userId of
-          D.RegUserId _ -> D.RegSessionId sId
-          D.GuestUserId _ -> D.GuestSessionId sId
-          D.BotUserId _ -> D.BotSessionId sId 
-    let newSessions = Map.insert sessionId (userId, D.defaultSessionData) (serverSessions ss)
+    let sessionId = D.SessionId sId
+    let newSessions = Map.insert sessionId (D.defaultSessionData userId) (serverSessions ss)
     let newWSChans = Map.insert sessionId (WS.emptyWSChan conn) (serverWSChans ss)
     let newGameStates = Map.insert sessionId gameState (serverGameStates ss)
     let newSession = ss 
@@ -134,10 +131,11 @@ startGame sHostId sGuestId gameType = do
         }
   liftIO $ atomically $ do
     ss :: ServerState <- readTVar tvar
-    let gameRoomId = serverGameRoomIdCounter ss + 1
+    let grIdx = serverGameRoomIdCounter ss + 1
+    let gameRoomId = D.GameRoomId grIdx
     let newLobby = Map.update (Just . Set.delete sHostId ) gameType (serverLobby ss)
     let newActiveGames = Map.insert gameRoomId newGameRoom (serverActiveGames ss)
-    writeTVar tvar ss{serverLobby = newLobby, serverActiveGames = newActiveGames, serverGameRoomIdCounter = gameRoomId}
+    writeTVar tvar ss{serverLobby = newLobby, serverActiveGames = newActiveGames, serverGameRoomIdCounter = grIdx}
     pure gameRoomId
 
 

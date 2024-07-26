@@ -24,6 +24,12 @@ source-repository head
 
 library
   exposed-modules:
+      Adapter.HTTP.API.Common
+      Adapter.HTTP.Common
+      Adapter.HTTP.Main
+      Adapter.HTTP.Web.Auth
+      Adapter.HTTP.Web.Common
+      Adapter.HTTP.Web.Main
       Adapter.InMemory.Server
       Application
       Config
@@ -55,15 +61,23 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , blaze-html
     , bytestring
     , classy-prelude
     , containers
+    , cookie
     , data-has
+    , http-types
     , mtl
     , random
     , record-hasfield
+    , scotty
     , string-random
     , text
+    , time
+    , wai
+    , wai-extra
+    , wai-middleware-static
     , websockets
   default-language: Haskell2010
 
@@ -84,15 +98,23 @@ executable BanananBack-exe
       BanananBack
     , aeson
     , base >=4.7 && <5
+    , blaze-html
     , bytestring
     , classy-prelude
     , containers
+    , cookie
     , data-has
+    , http-types
     , mtl
     , random
     , record-hasfield
+    , scotty
     , string-random
     , text
+    , time
+    , wai
+    , wai-extra
+    , wai-middleware-static
     , websockets
   default-language: Haskell2010
 
@@ -114,14 +136,22 @@ test-suite BanananBack-test
       BanananBack
     , aeson
     , base >=4.7 && <5
+    , blaze-html
     , bytestring
     , classy-prelude
     , containers
+    , cookie
     , data-has
+    , http-types
     , mtl
     , random
     , record-hasfield
+    , scotty
     , string-random
     , text
+    , time
+    , wai
+    , wai-extra
+    , wai-middleware-static
     , websockets
   default-language: Haskell2010
