@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 module Adapter.HTTP.Common where
 
 
@@ -45,12 +46,29 @@ setSessionIdInCookie (D.SessionId sId) = do
     }
   
 
-getCurrentUserId :: D.SessionRepo m => ActionT m (Maybe D.UserId)
+getCurrentUserId :: (D.SessionRepo m) => ActionT m (Maybe (D.SessionId, D.UserId))
 getCurrentUserId = do
-  maySessionId <- getCookie "sId"
+  maySIdText <- getCookie "sId"
+  let maySessionId :: Maybe D.SessionId = do 
+        sIdText :: Text <- maySIdText
+        sId :: Int <- safeRead (unpack sIdText)
+        pure $ D.SessionId sId
   case maySessionId of
     Nothing -> pure Nothing
-    Just sIdText -> case read (unpack sIdText) of
-      Nothing -> pure Nothing
-      Just (sId :: Int) -> lift $ D.resolveSessionId  (D.SessionId sId)
+    Just sessionId -> do
+        mayUserId <- lift $ D.resolveSessionId  sessionId
+        case mayUserId of
+          Nothing -> pure Nothing
+          Just uId -> pure $ Just (sessionId, uId) 
+
+  -- case maySId of
+  --   Nothing -> pure Nothing
+  --   Just sIdText -> case read (unpack sIdText) of
+  --     Nothing -> pure Nothing
+  --     Just (sId :: Int) -> do
+  --       let sessionId = D.SessionId sId
+  --       mayUserId <- lift $ D.resolveSessionId  sessionId
+  --       case mayUserId of
+  --         Nothing -> pure Nothing
+  --         Just uId -> pure $ Just (sessionId, uId) 
 

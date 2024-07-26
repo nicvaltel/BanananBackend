@@ -16,8 +16,7 @@ main ::
   Int -> (m Response -> IO Response) -> IO ()
 main port runner = do
   web <- Web.mainWeb runner
-  run port web
-  -- api <- API.mainAPI runner
-  -- run port $ vhost [(pathBeginsWith "api", api)] web
+  api <- API.mainAPI runner
+  run port $ vhost [(pathBeginsWith "api", api)] web
   where
     pathBeginsWith path req = headMay (pathInfo req) == Just path

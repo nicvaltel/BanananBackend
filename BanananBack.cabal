@@ -24,6 +24,7 @@ source-repository head
 
 library
   exposed-modules:
+      Adapter.HTTP.API.Auth
       Adapter.HTTP.API.Common
       Adapter.HTTP.API.Main
       Adapter.HTTP.Common
@@ -47,6 +48,7 @@ library
       HSPG.TempKind
       Lib
       Reexport
+      Utils.Utils
       WebSocketServer
   other-modules:
       Paths_BanananBack
@@ -65,6 +67,7 @@ library
     , blaze-html
     , bytestring
     , classy-prelude
+    , conduit
     , containers
     , cookie
     , data-has
@@ -103,6 +106,7 @@ executable BanananBack-exe
     , blaze-html
     , bytestring
     , classy-prelude
+    , conduit
     , containers
     , cookie
     , data-has
@@ -142,6 +146,7 @@ test-suite BanananBack-test
     , blaze-html
     , bytestring
     , classy-prelude
+    , conduit
     , containers
     , cookie
     , data-has

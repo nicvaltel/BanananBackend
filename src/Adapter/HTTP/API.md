@@ -1,17 +1,10 @@
-
-Login:
+Get User:
   Request:
-    POST /api/auth/login
-    { "guestUserId":"123"
-    , "guestPassword":"abcDEF123"   
-    }
-  Responce:
-    Invalid auth:
-      400
-      "InvalidAuth"
-      { "guestUserId":"123"
-      , "guestPassword":"abcDEF123"   
-      }
+    GET /api/users
 
+  Responce:
     Success:
       200
+      { "uId": "555123"
+      , "sId": "777212"
+      }

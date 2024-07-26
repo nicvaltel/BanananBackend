@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Adapter.HTTP.Web.Main where
 
-import Domain.Server
+import qualified Domain.Server as D
 import ClassyPrelude
 import Web.Scotty.Trans
 import Network.HTTP.Types.Status
@@ -12,14 +12,14 @@ import qualified Adapter.HTTP.Web.Auth as WebAuth
 
 
 mainWeb :: 
-  (MonadUnliftIO m, SessionRepo m) =>
+  (MonadUnliftIO m, D.SessionRepo m) =>
   (m Response -> IO Response) -> IO Application
 mainWeb runner = do
   cacheContainer <- initCaching PublicStaticCaching
   scottyAppT defaultOptions runner $ routes cacheContainer
 
 routes :: 
-  ( MonadUnliftIO m, SessionRepo m) =>
+  ( MonadUnliftIO m, D.SessionRepo m) =>
   CacheContainer -> ScottyT m ()
 routes cachingStrategy= do
 

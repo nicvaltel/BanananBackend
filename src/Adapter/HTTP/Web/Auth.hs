@@ -17,8 +17,8 @@ routes :: (MonadUnliftIO m) => ScottyT m ()
 routes = do
   -- home
   get "/" $
-    file "static/index.html"
-    -- redirect "/api/auth/login"
+    -- trace "HERE1: Adapter.HTTP.Web.Auth.routes:get '/'"
+    redirect "/api/users"
 
-  get "/api/auth/login" $
-    redirect "/api/auth/login"
+  get "/auth/guest" $
+    file "static/auth-guest.html"

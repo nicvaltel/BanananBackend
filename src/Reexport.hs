@@ -6,6 +6,7 @@ module Reexport
   , module Control.Monad.State 
   , module Data.Function
   , module Data.Has
+  , module Utils.Utils
   ) where
 
 import Prelude (read)
@@ -15,6 +16,7 @@ import Data.Aeson (FromJSON(..), ToJSON(..), FromJSONKey(..), ToJSONKey(..), Val
 import Control.Monad.State (State, modify , get, put, gets, runState)
 import Data.Function ((&))
 import Data.Has (Has, getter)
+import Utils.Utils (safeRead)
 -- import Control.Monad.RWS (RWST, runRWST, evalRWST)
 -- import GHC.Records.Extra
 -- import GHC.Generics (Generic)
