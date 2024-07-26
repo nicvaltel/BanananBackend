@@ -1,6 +1,7 @@
 module Adapter.HTTP.Web.Auth where
 
 import Reexport hiding (concatMap, get)
+import ClassyPrelude
 import Web.Scotty.Trans
 import Domain.Server
 import Web.Scotty.Trans
@@ -16,7 +17,6 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Data.Aeson (object, (.=))
 
-import ClassyPrelude (concatMap)
 
 routes :: (MonadUnliftIO m) => ScottyT m ()
 routes = do

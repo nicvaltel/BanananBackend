@@ -19,6 +19,7 @@ module Domain.Server
 
 
 import Reexport
+import ClassyPrelude
 import Domain.Game
 import qualified Network.WebSockets as WebSockets
 import qualified Domain.GameBot.GameModel as G

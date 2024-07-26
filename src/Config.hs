@@ -1,6 +1,7 @@
 module Config where
 
 import Reexport
+import ClassyPrelude
 
 data Config = Config 
   { port :: Int

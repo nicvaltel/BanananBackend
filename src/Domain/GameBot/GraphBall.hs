@@ -8,10 +8,11 @@ module Domain.GameBot.GraphBall
   , findNotAttachedToCeilingBalls
   ) where
 
-import Reexport
+import Data.List ((\\))
 import Domain.GameBot.Actors (Actor(..), BallColor, NameId, ActorData (..), Ball (..))
 import qualified Domain.GameBot.Actors as AC
 import qualified Data.Map.Strict as Map
+import ClassyPrelude hiding ((\\))
 
 data GraphNode a id = Node {nodeId :: id, nodeData :: a, neighbours :: [GraphNode a id]}
 

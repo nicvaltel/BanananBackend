@@ -3,7 +3,7 @@ module Domain.Game
 
   ) where
 
-import Reexport
+import ClassyPrelude
 
 data GameType = GameTypeStandart
   deriving (Show, Eq, Ord)

@@ -5,6 +5,7 @@ module Domain.GameBot.GameModel where
 
 
 import Reexport
+import ClassyPrelude
 import Domain.GameBot.Actors
 import Domain.GameBot.GraphBall
 import qualified Data.Map.Strict as M

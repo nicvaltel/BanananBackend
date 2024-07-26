@@ -3,6 +3,7 @@ module Domain.GameBot.Bot
   ) where
 
 import Reexport
+import ClassyPrelude
 import WebSocketServer (WSMessage)
 import Domain.GameBot.GameModel (AppMod, GameState)
 

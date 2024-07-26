@@ -15,9 +15,11 @@ module Adapter.InMemory.Server
   , initGuestSession
   ) where
 
+import Reexport
+import ClassyPrelude
+
 import qualified Domain.Server as D
 
-import Reexport
 import Domain.Game (GameType)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set

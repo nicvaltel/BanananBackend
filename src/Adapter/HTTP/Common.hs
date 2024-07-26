@@ -3,10 +3,9 @@ module Adapter.HTTP.Common where
 
 
 import Reexport
+import ClassyPrelude
 import Web.Scotty.Trans
 import Web.Cookie
-import Data.Text.Lazy (toStrict)
-import ClassyPrelude (decodeUtf8, Utf8 (encodeUtf8), unpack)
 import qualified Domain.Server as D
 import Data.ByteString.Builder (toLazyByteString)
 import qualified Data.Text.Encoding as T

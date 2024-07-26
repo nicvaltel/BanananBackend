@@ -5,6 +5,7 @@
 module Domain.GameBot.GameConfig where
 
 import Reexport
+import ClassyPrelude
 
 
 data GameConfig = GameConfig{ 

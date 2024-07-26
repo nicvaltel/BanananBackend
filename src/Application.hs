@@ -6,6 +6,7 @@ module Application (runApp) where
 
 
 import Reexport
+import ClassyPrelude
 import Lib
 import WebSocketServer
 import Control.Concurrent (threadDelay)

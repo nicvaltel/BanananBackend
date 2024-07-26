@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant lambda" #-}
+{-# HLINT ignore "Avoid lambda" #-}
 module Domain.Validation
   ( Validation
   , validate
@@ -5,21 +8,15 @@ module Domain.Validation
   , lengthBetween
   ) where
 
-import Reexport
-import qualified ClassyPrelude as CP
-
-
-
+import ClassyPrelude
 
 type Validation e a = a -> Maybe e
-
 
 validate :: (a -> b) -> [Validation e a] -> a -> Either [e] b
 validate constructor validations val =
   case concatMap (\f -> maybeToList $ f val) validations of
     [] -> Right (constructor val)
     errs -> Left errs
-
 
 rangeBetween :: Ord a => a -> a -> e -> Validation e a
 rangeBetween minRange maxRange msg = \val ->
@@ -29,4 +26,4 @@ rangeBetween minRange maxRange msg = \val ->
 
 lengthBetween :: MonoFoldable a => Int -> Int -> e -> a -> Maybe e
 lengthBetween minLen maxLen msg = \val -> 
-  rangeBetween minLen maxLen msg (CP.length val)
+  rangeBetween minLen maxLen msg (length val)

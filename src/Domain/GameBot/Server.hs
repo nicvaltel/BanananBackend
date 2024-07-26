@@ -6,15 +6,12 @@
 module Domain.GameBot.Server where
 
 
-
-import Domain.GameBot.Actors 
 import Reexport
+import ClassyPrelude
+import Domain.GameBot.Actors 
 import WebSocketServer (WSMessage)
 import Domain.GameBot.GameModel (AppMod, modgs, mkNewNameId, FlyBall (..))
-import Data.ByteString (fromStrict)
-import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Map.Strict as M
-import Data.Foldable (for_)
 
 
 

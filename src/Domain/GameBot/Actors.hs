@@ -20,8 +20,10 @@ module Domain.GameBot.Actors
 
 
 import Reexport
+import ClassyPrelude
 
-newtype NameId = NameId {unNameId :: String} deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON, FromJSONKey, ToJSONKey)
+newtype NameId = NameId {unNameId :: String} 
+  deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON, FromJSONKey, ToJSONKey)
 
 data Actor ac = Actor {
     nameId :: NameId

@@ -21,8 +21,9 @@ module WebSocketServer
   )
 where
 
+
+import ClassyPrelude
 import qualified Network.WebSockets as WS
-import Reexport
 import Domain.Server (WSConnection, WSMessage)
 
 type Port = Int

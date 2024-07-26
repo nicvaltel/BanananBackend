@@ -1,6 +1,7 @@
 module Main (main) where
 
 import Reexport
+import ClassyPrelude
 import qualified Data.ByteString as B
 import qualified Application
 

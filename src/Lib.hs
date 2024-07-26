@@ -10,9 +10,9 @@ module Lib
   ) where
 
 import Reexport
+import ClassyPrelude
 import Domain.Server
 import qualified Adapter.InMemory.Server as Mem
-
 
 type AppState = TVar Mem.ServerState
 

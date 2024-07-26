@@ -3,6 +3,7 @@ module Adapter.HTTP.Web.Common where
 
 
 import Reexport
+import ClassyPrelude
 import Web.Scotty.Trans
 import Domain.Server
 -- import qualified Text.Digestive.View as DF
