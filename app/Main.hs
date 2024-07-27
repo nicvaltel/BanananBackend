@@ -14,5 +14,5 @@ main :: IO ()
 main = do
   rawConfig <- B.readFile configPath
   case decodeStrict rawConfig of
-    Just Config{port, wstimeoutMs, wsThreadDelayMs} -> Application.runApp port wstimeoutMs wsThreadDelayMs
+    Just Config{port, wstimeoutMs, wsThreadDelayMs} -> Application.runApp port wstimeoutMs
     Nothing -> putStrLn $ "Invalid config file " <> tshow configPath

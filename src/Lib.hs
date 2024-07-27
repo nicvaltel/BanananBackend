@@ -21,19 +21,24 @@ newtype App a = App { unApp :: ReaderT AppState IO a  }
   deriving (Functor, Applicative, Monad, MonadReader AppState, MonadIO, MonadFail, MonadUnliftIO)
 
 
+
 instance SessionRepo App where
-  initSession = Mem.initSession
-  initGuestSession = Mem.initGuestSession
+  initNewGuestSession = Mem.initNewGuestSession
+  initKnownUserSession = Mem.initKnownUserSession
+  restoreExistingSession = Mem.restoreExistingSession
   disconnectSession = Mem.disconnectSession
-  sendOutMessage = Mem.sendOutMessage
-  pushInputMessage = Mem.pushInputMessage
-  processMessages = Mem.processMessages
-  sendOutAllMessages = Mem.sendOutAllMessages
-  findSessionDataBySessionId = Mem.findSessionDataBySessionId 
+  getUserIdBySessionId = Mem.getUserIdBySessionId
+
+instance WSRepo App where
+  initWSConn = Mem.initWSConn
+  pushInputWSMessage = Mem.pushInputWSMessage
+  processWSMessages = Mem.processWSMessages
+  sendOutWSMessage = Mem.sendOutWSMessage
+  sendOutAllWSMessages = Mem.sendOutAllWSMessages
 
 instance GameRepo App where
-  addGameToLobby = Mem.addGameToLobby
-  startGame = Mem.startGame
+  addGameToLobby = undefined
+  startGame = undefined
 
 
 runSession :: AppState -> App a -> IO a

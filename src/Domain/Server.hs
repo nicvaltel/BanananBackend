@@ -1,7 +1,5 @@
 module Domain.Server 
-  ( WSConnection
-  , WSMessage
-  , UserIdx
+  ( UserIdx
   , UserId(..)
   , SessionIdx
   , SessionId(..)
@@ -10,10 +8,9 @@ module Domain.Server
   , GameRoom(..)
   , GameRoomIdx
   , GameRoomId(..)
-  , SessionData(..)
   , SessionRepo(..)
+  , WSRepo(..)
   , GameRepo(..)
-  , defaultSessionData
   , resolveSessionId
   ) where
 
@@ -21,39 +18,24 @@ module Domain.Server
 import Reexport
 import ClassyPrelude
 import Domain.Game
-import qualified Network.WebSockets as WebSockets
+import qualified WebSocketServer as WS
 import qualified Domain.GameBot.GameModel as G
 
 
-type WSConnection = WebSockets.Connection
-
-type WSMessage = Text
-
-type UserIdx = Int
-
 type SessionIdx = Int
+type SessionIdHost = SessionId
+type SessionIdGuest = SessionId
 newtype SessionId = SessionId {unSessionId :: SessionIdx}
   deriving (Show, Eq, Ord)
 
+type UserIdx = Int
 newtype UserId = UserId {unUserId :: UserIdx}
   deriving (Show, Eq, Ord)
-
-type SessionIdHost = SessionId
-
-type SessionIdGuest = SessionId
 
 type GameRoomIdx = Int
 newtype GameRoomId = GameRoomId {unGameRoomId :: GameRoomIdx}
   deriving (Show, Eq, Ord)
 
-data SessionData = SessionData {
-    sessionDataUserId :: UserId
-} deriving (Show, Eq, Ord)
-
-defaultSessionData :: UserId -> SessionData 
-defaultSessionData userId = SessionData {
-  sessionDataUserId = userId
-}
 
 data GameRoom = GameRoom
   { gameRoomGameType :: GameType
@@ -62,14 +44,21 @@ data GameRoom = GameRoom
   } deriving (Show, Eq, Ord)
 
 class Monad m => SessionRepo m where
-  initSession :: WSConnection -> UserId -> m SessionId
-  initGuestSession :: WSConnection -> m SessionId
+  initNewGuestSession :: m (SessionId, UserId)
+  initKnownUserSession :: UserId -> m (Maybe (SessionId, UserId))
+  restoreExistingSession :: SessionId -> UserId -> m (Maybe (SessionId, UserId))
   disconnectSession :: SessionId -> m ()
-  pushInputMessage :: SessionId -> WSMessage -> m ()
-  processMessages :: ([WSMessage] -> WSMessage -> State G.GameState [WSMessage]) -> SessionId -> m ()
-  sendOutMessage :: SessionId -> m ()
-  sendOutAllMessages :: m ()
-  findSessionDataBySessionId :: SessionId -> m (Maybe SessionData)
+  getUserIdBySessionId :: SessionId -> m (Maybe UserId)
+
+
+-- TODO Important fix: make all updating messages in WSChan via TVar, not to update atomiccally all Server every time! (as it done for serverGameStates)
+class Monad m => WSRepo m where
+  initWSConn :: WS.WSConnection -> SessionId -> m (Either Text ())
+  disconnectWSConn :: WS.WSConnection -> SessionId -> m ()
+  pushInputWSMessage :: SessionId -> WS.WSMessage -> m ()
+  processWSMessages :: ([WS.WSMessage] -> WS.WSMessage -> State G.GameState [WS.WSMessage]) -> SessionId -> m () -- TODO move partially it ot game logic
+  sendOutWSMessage :: SessionId -> m ()
+  sendOutAllWSMessages :: m ()
 
 class Monad m => GameRepo m where
   addGameToLobby :: SessionId -> GameType -> m ()
@@ -77,6 +66,4 @@ class Monad m => GameRepo m where
 
 
 resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
-resolveSessionId sId = do 
-  sd <- findSessionDataBySessionId sId
-  pure (sessionDataUserId <$> sd)
+resolveSessionId = getUserIdBySessionId

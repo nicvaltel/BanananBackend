@@ -24,12 +24,11 @@ where
 
 import ClassyPrelude
 import qualified Network.WebSockets as WS
-import Domain.Server (WSConnection, WSMessage)
 
+type WSConnection = WS.Connection
+type WSMessage = Text
 type Port = Int
-
 type WSTimeout = Int -- in milliseconds
-
 type WSConnectionAct a = WSConnection -> IO a
 
 data WSChan = WSChan
@@ -60,29 +59,71 @@ receiveMessage :: WSConnection -> IO WSMessage
 receiveMessage = WS.receiveData
 
 
-webSocketServer ::
+webSocketServerAlternative ::
   WSTimeout ->
+  (ByteString -> Maybe wsid) ->
   (WSConnection -> wsid -> IO ()) ->
-  (WSConnection -> IO wsid) ->
+  (WSConnection -> wsid -> IO (Either Text ())) ->
   (WSConnection -> wsid -> IO ()) ->
   WS.ServerApp
-webSocketServer timeout act initConnection disconnect = \pendingConn -> do
+webSocketServerAlternative wstimeout extractSessionIdFromRequestPath act initConnection disconnect = \pendingConn -> do
+  
+  let req = WS.pendingRequest pendingConn
+  let path = WS.requestPath req
+  putStrLn $ "\npath = " ++ tshow path
+  case extractSessionIdFromRequestPath path of
+    Nothing -> WS.rejectRequest pendingConn "Websocket connection rejected: no SessionId provided"
+    Just wsId -> do
+      conn <- WS.acceptRequest pendingConn
+      eitherWsId <- initConnection conn wsId
+      case eitherWsId of
+        Left errMsg -> do
+          sendTextData conn errMsg
+          pure ()
+        Right _ -> do
+          WS.withPingThread conn wstimeout (pure ()) $ do -- default timeout = 30ms
+            finally
+              (act conn wsId)
+              (disconnect conn wsId)
+
+
+webSocketServer ::
+  WSTimeout ->
+  (ByteString -> Maybe wsid) ->
+  (WSConnection -> wsid -> IO ()) ->
+  (WSConnection -> wsid -> IO (Either Text ())) ->
+  (WSConnection -> wsid -> IO ()) ->
+  WS.ServerApp
+webSocketServer wstimeout extractSessionIdFromRequestPath act initConnection disconnect = \pendingConn -> do
+  
+  let req = WS.pendingRequest pendingConn
+  let path = WS.requestPath req
+  -- let headers = WS.requestHeaders req
+  -- putStrLn $ "\nheaders = " ++ tshow headers
+  putStrLn $ "\npath = " ++ tshow path
   conn <- WS.acceptRequest pendingConn
-  wsId <- initConnection conn
-  WS.withPingThread conn timeout (pure ()) $ do -- default timeout = 30ms
-    finally
-      (act conn wsId)
-      (disconnect conn wsId)
+  case extractSessionIdFromRequestPath path of
+    Nothing -> sendTextData conn "Websocket connection rejected: no SessionId provided" -- close connection
+    Just wsId -> do
+        eitherWsId <- initConnection conn wsId
+        case eitherWsId of
+          Left errMsg -> sendTextData conn errMsg -- close connection
+          Right _ -> do
+            WS.withPingThread conn wstimeout (pure ()) $ do -- default timeout = 30ms
+              finally
+                (act conn wsId)
+                (disconnect conn wsId)
 
 startWebSocketServer ::
   Port ->
   WSTimeout ->
-  (WSConnection -> wsid -> IO ()) ->
-  (WSConnection -> IO wsid) ->
-  (WSConnection -> wsid -> IO ()) ->
+  (ByteString -> Maybe wsid) -> -- extractSessionIdFromRequestPath
+  (WSConnection -> wsid -> IO ()) -> -- act
+  (WSConnection -> wsid -> IO (Either Text ())) -> -- initConnection
+  (WSConnection -> wsid -> IO ()) -> -- disconnect
   IO ()
-startWebSocketServer port timeout act initConnection disconnect = do
-  WS.runServer "0.0.0.0" port (webSocketServer timeout act initConnection disconnect)
+startWebSocketServer port wstimeout extractSessionIdFromRequestPath act initConnection disconnect = do
+  WS.runServer "0.0.0.0" port (webSocketServer wstimeout extractSessionIdFromRequestPath act initConnection disconnect)
 
 sendTextData :: WSConnection -> Text -> IO ()
 sendTextData = WS.sendTextData
