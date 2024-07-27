@@ -29,7 +29,7 @@ instance SessionRepo App where
   pushInputMessage = Mem.pushInputMessage
   processMessages = Mem.processMessages
   sendOutAllMessages = Mem.sendOutAllMessages
-  findUserIdBySessionId _ = pure Nothing -- TODO fix it 
+  findSessionDataBySessionId = Mem.findSessionDataBySessionId 
 
 instance GameRepo App where
   addGameToLobby = Mem.addGameToLobby

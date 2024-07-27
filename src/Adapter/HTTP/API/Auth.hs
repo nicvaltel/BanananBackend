@@ -43,7 +43,7 @@ routes :: (MonadUnliftIO m, D.SessionRepo m) => ScottyT m ()
 routes = do
 
   get "/api/users" $ do
-    (D.SessionId sId, D.GuestUserId uId) <- reqCurrentUserId
+    (D.SessionId sId, D.UserId uId) <- reqCurrentUserId
     setSessionIdInCookie (D.SessionId sId)
     let strJson = wrapJsonStrings $ map mkJsonIntPairString [("uId", uId), ("sId", sId)]
     json strJson

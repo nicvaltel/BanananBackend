@@ -35,11 +35,8 @@ type SessionIdx = Int
 newtype SessionId = SessionId {unSessionId :: SessionIdx}
   deriving (Show, Eq, Ord)
 
-data UserId = 
-      RegUserId UserIdx
-    | GuestUserId UserIdx
-    | BotUserId UserIdx
-      deriving (Show, Eq, Ord)
+newtype UserId = UserId {unUserId :: UserIdx}
+  deriving (Show, Eq, Ord)
 
 type SessionIdHost = SessionId
 
@@ -72,7 +69,7 @@ class Monad m => SessionRepo m where
   processMessages :: ([WSMessage] -> WSMessage -> State G.GameState [WSMessage]) -> SessionId -> m ()
   sendOutMessage :: SessionId -> m ()
   sendOutAllMessages :: m ()
-  findUserIdBySessionId :: SessionId -> m (Maybe UserId)
+  findSessionDataBySessionId :: SessionId -> m (Maybe SessionData)
 
 class Monad m => GameRepo m where
   addGameToLobby :: SessionId -> GameType -> m ()
@@ -80,4 +77,6 @@ class Monad m => GameRepo m where
 
 
 resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
-resolveSessionId = findUserIdBySessionId
+resolveSessionId sId = do 
+  sd <- findSessionDataBySessionId sId
+  pure (sessionDataUserId <$> sd)

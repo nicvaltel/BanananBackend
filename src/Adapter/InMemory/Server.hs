@@ -13,6 +13,7 @@ module Adapter.InMemory.Server
   , processMessages
   , sendOutAllMessages
   , initGuestSession
+  , findSessionDataBySessionId
   ) where
 
 import Reexport
@@ -63,7 +64,7 @@ initGuestSession conn = do
   liftIO $ atomically $ do
     ss <- readTVar tvar
     let uId = serverUserIdCounter ss + 1
-    let userId = D.GuestUserId uId
+    let userId = D.UserId uId
     let sId = serverSessionIdCounter ss + 1
     let sessionId = D.SessionId sId
     let newSessions = Map.insert sessionId (D.defaultSessionData userId) (serverSessions ss)
@@ -240,3 +241,11 @@ sendOutAllMessages = do
     writeTVar tvar ss{serverWSToSend = []}
     pure ids
   traverse_ sendOutMessage sIds
+
+
+findSessionDataBySessionId :: InMemory r m => D.SessionId -> m (Maybe D.SessionData)
+findSessionDataBySessionId sessionId = do
+  tvar <- asks getter
+  ss <- liftIO $ readTVarIO tvar
+  let maySessionData = Map.lookup sessionId (serverSessions ss)
+  pure maySessionData
