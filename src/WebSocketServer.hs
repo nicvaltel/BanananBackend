@@ -100,7 +100,7 @@ webSocketServer wstimeout extractSessionIdFromRequestPath act initConnection dis
   let path = WS.requestPath req
   -- let headers = WS.requestHeaders req
   -- putStrLn $ "\nheaders = " ++ tshow headers
-  putStrLn $ "\npath = " ++ tshow path
+  -- putStrLn $ "\npath = " ++ tshow path
   conn <- WS.acceptRequest pendingConn
   case extractSessionIdFromRequestPath path of
     Nothing -> sendTextData conn "Websocket connection rejected: no SessionId provided" -- close connection

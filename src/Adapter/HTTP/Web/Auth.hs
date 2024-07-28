@@ -18,7 +18,7 @@ routes = do
   -- home
   get "/" $
     -- trace "HERE1: Adapter.HTTP.Web.Auth.routes:get '/'"
-    redirect "/api/users"
+    redirect "/auth"
 
-  get "/auth/guest" $
-    file "static/auth-guest.html"
+  get "/auth" $
+    file "static/auth.html"

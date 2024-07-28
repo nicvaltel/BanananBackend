@@ -19,7 +19,11 @@ errorResponce val = object [ "error" .= val]
 reqCurrentUserId :: (D.SessionRepo m) => ActionT m (D.SessionId, D.UserId)
 reqCurrentUserId = do
   maySessionIdUserId <- getCurrentUserId
-  -- pure (D.SessionId 777, D.GuestUserId 555)
   case maySessionIdUserId of
-    Nothing -> redirect "/auth/login"
     Just sessionIdUserId -> pure sessionIdUserId
+    Nothing -> lift D.initNewGuestSession
+
+  -- pure (D.SessionId 777, D.UserId 555)
+  -- case maySessionIdUserId of
+  --   Nothing -> redirect "/auth/login"
+  --   Just sessionIdUserId -> pure sessionIdUserId
