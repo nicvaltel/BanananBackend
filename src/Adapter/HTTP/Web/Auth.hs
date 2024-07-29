@@ -20,5 +20,8 @@ routes = do
     -- trace "HERE1: Adapter.HTTP.Web.Auth.routes:get '/'"
     redirect "/auth"
 
+  get "/lobby" $
+    file "static/lobby.html"
+
   get "/auth" $
     file "static/auth.html"
