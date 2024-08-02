@@ -55,7 +55,7 @@ data ServerState = ServerState {
 
 data SessionData = SessionData 
   { sessionDataUserId :: D.UserId
-  , sessioinDataWSChan :: Maybe WS.WSChan
+  , sessioinDataWSChan :: Maybe (TVar WS.WSChan)
   }
 
 defaultSessionData :: D.UserId -> SessionData 
@@ -176,15 +176,14 @@ initWSConn wsConn sessionId = do
       Nothing -> pure $ Left "SessionId is not active"
       Just sd ->
         case sessioinDataWSChan sd of
-          Just wsChan -> do
+          Just tvarWsChan -> do
+            wsChan <- readTVar tvarWsChan
             let newWSChan = wsChan {wschanConn = wsConn}
-            let newSessionData = sd{sessioinDataWSChan = Just newWSChan}
-            let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
-            let newServerState = ss{ serverSessions = newSessions }
-            writeTVar tvar newServerState
+            writeTVar tvarWsChan newWSChan
             pure $ Right ()
           Nothing -> do
-            let newSessionData = sd{sessioinDataWSChan = Just $ WS.emptyWSChan wsConn}
+            tvarWsChan <- newTVar (WS.emptyWSChan wsConn)
+            let newSessionData = sd{sessioinDataWSChan = Just tvarWsChan}
             let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
             let newServerState = ss{ serverSessions = newSessions }
             writeTVar tvar newServerState
@@ -199,7 +198,7 @@ disconnectWSConn wsConn sessionId = do
       Nothing -> pure ()
       Just sd ->
         case sessioinDataWSChan sd of
-          Just wsChan -> do
+          Just tvarWsChan -> do
             let newSessionData = sd{sessioinDataWSChan = Nothing}
             let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
             let newServerState = ss{ serverSessions = newSessions }
@@ -211,44 +210,35 @@ disconnectWSConn wsConn sessionId = do
 sendOutWSMessage :: InMemory r m => D.SessionId -> m ()
 sendOutWSMessage sessionId = do
   tvar :: TVar ServerState <- asks getter
-  mayMsg <- liftIO $ atomically $ do
-    ss <- readTVar tvar
-    case Map.lookup sessionId (serverSessions ss) of
-      Nothing -> pure Nothing
-      Just sd -> do
+  ss <- readTVarIO tvar
+  case Map.lookup sessionId (serverSessions ss) of
+      Nothing -> pure ()
+      Just sd ->
         case sessioinDataWSChan sd of
-          Nothing -> pure Nothing
-          Just chan@WSChan{wschanOut, wschanConn} -> do
+          Nothing -> pure ()
+          Just tvarWsChan -> do
+            chan@WSChan{wschanOut, wschanConn} <- readTVarIO tvarWsChan
             case wschanOut of
-              [] -> pure Nothing
+              [] -> pure ()
               msg:rest -> do
                 let newWsChan = chan{wschanOut = rest}
-                let newSessionData = sd{sessioinDataWSChan = Just newWsChan}
-                let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
-                let newServerState = ss{ serverSessions = newSessions }
-                writeTVar tvar newServerState
-                pure $ Just (msg, wschanConn)
-  case mayMsg of
-    Nothing -> pure ()
-    Just (msg, conn) -> liftIO $ WS.sendTextData conn msg 
+                atomically (writeTVar tvarWsChan newWsChan)
+                liftIO $ WS.sendTextData wschanConn msg 
 
 
 pushInputWSMessage :: InMemory r m => D.SessionId -> WSMessage -> m ()
 pushInputWSMessage sessionId msg = do
   tvar <- asks getter 
-  liftIO $ atomically $ do
-    ss <- readTVar tvar
-    case Map.lookup sessionId (serverSessions ss) of
+  ss <- readTVarIO tvar
+  case Map.lookup sessionId (serverSessions ss) of
       Nothing -> pure ()
-      Just sd -> do
+      Just sd ->
         case sessioinDataWSChan sd of
           Nothing -> pure ()
-          Just wsChan -> do
-            let newWsChan = WS.pushWSIn msg wsChan 
-            let newSessionData = sd{sessioinDataWSChan = Just newWsChan}
-            let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
-            let newServerState = ss{ serverSessions = newSessions }
-            writeTVar tvar newServerState
+          Just tvarWsChan -> do
+            chan <- readTVarIO tvarWsChan
+            let newWsChan = WS.pushWSIn msg chan
+            atomically (writeTVar tvarWsChan newWsChan)
         
 
 processWSMessagesEcho :: InMemory r m => D.SessionId -> m ()
@@ -261,13 +251,11 @@ processWSMessagesEcho sessionId = do
       Just sd -> do
         case sessioinDataWSChan sd of
           Nothing -> pure ()
-          Just chan@WSChan{wschanIn, wschanOut} -> do
+          Just tvarWsChan -> do
+            chan@WSChan{wschanOut, wschanIn} <- readTVar tvarWsChan
             let newWsChan = chan{wschanIn = [], wschanOut = reverse wschanIn <> wschanOut }
-            let newSessionData = sd{sessioinDataWSChan = Just newWsChan}
-            let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
-            let newServerState = ss
-                  { serverSessions = newSessions
-                  , serverWSToSend = sessionId : serverWSToSend ss }
+            writeTVar tvarWsChan newWsChan
+            let newServerState = ss { serverWSToSend = sessionId : serverWSToSend ss } -- TODO do it without updating all server
             writeTVar tvar newServerState
 
 
@@ -282,12 +270,10 @@ processWSMessages processWSMsg sessionId = do
       Just sd -> do
         case sessioinDataWSChan sd of
           Nothing -> pure ([], gameStates)
-          Just chan@WSChan{wschanIn} -> do
+          Just tvarWsChan -> do
+            chan@WSChan{wschanIn} <- readTVar tvarWsChan
             let newWsChan = chan{wschanIn = []}
-            let newSessionData = sd{sessioinDataWSChan = Just newWsChan}
-            let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
-            let newServerState = ss{ serverSessions = newSessions }
-            writeTVar tvar newServerState
+            writeTVar tvarWsChan newWsChan
             pure (wschanIn, gameStates) 
 
   unless (null msgs) $ do
@@ -312,13 +298,11 @@ processWSMessages processWSMsg sessionId = do
             Just sd -> do
               case sessioinDataWSChan sd of
                 Nothing -> pure ()
-                Just chan@WSChan{wschanOut} -> do
+                Just tvarWsChan -> do
+                  chan@WSChan{wschanOut} <- readTVar tvarWsChan
                   let newWsChan = chan{wschanOut = reverse outMsgs <> wschanOut}
-                  let newSessionData = sd{sessioinDataWSChan = Just newWsChan}
-                  let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
-                  let newServerState = ss
-                        { serverSessions = newSessions
-                        , serverWSToSend = sessionId : serverWSToSend ss }
+                  writeTVar tvarWsChan newWsChan
+                  let newServerState = ss { serverWSToSend = sessionId : serverWSToSend ss } -- TODO do it without updating all server
                   writeTVar tvar newServerState
 
 
@@ -339,24 +323,29 @@ addGameToLobby sessionIdHost lobbyGameType = do
   tvar <- asks getter
   liftIO $ atomically $ do
     ss :: ServerState <- readTVar tvar
-    case filter (\lb -> lobbySessionIdHost lb == sessionIdHost) (serverLobby ss) of
-      [] -> do
+    if Map.member sessionIdHost (serverGameStates ss) || any (\lb -> lobbySessionIdHost lb == sessionIdHost) (serverLobby ss)
+      then pure Nothing -- active game or game in lobby already exist
+      else do
         let lobbyLobbyId = serverLobbyIdCounter ss + 1
         let newServerLobby = LobbyElem{lobbyLobbyId, lobbySessionIdHost = sessionIdHost, lobbyGameType} : serverLobby ss
         writeTVar tvar ss{
               serverLobby = newServerLobby
             , serverLobbyIdCounter = lobbyLobbyId}
         pure $ Just lobbyLobbyId
-      _ -> pure Nothing
+
 
 
 joinGame :: InMemory r m => D.SessionIdGuest -> D.LobbyId -> m (Maybe D.GameRoomId)
 joinGame sIdGuest lobbyId = do
   tvar <- asks getter
+  
   liftIO $ atomically $ do
     ss :: ServerState <- readTVar tvar
     case partition (\lb -> lobbyLobbyId lb == lobbyId) (serverLobby ss) of
         ([LobbyElem{lobbySessionIdHost, lobbyGameType}],newLobby) -> do 
+            tvarGameStHost <- newTVar G.initialGameState
+            tvarGameStGuest <- newTVar G.initialGameState
+
             let newGameRoom = D.GameRoom
                   { D.gameRoomGameType = lobbyGameType
                   , D.gameRoomHost = lobbySessionIdHost
@@ -364,9 +353,13 @@ joinGame sIdGuest lobbyId = do
                   }
             let gameRoomId = serverGameRoomIdCounter ss + 1
             let newActiveGames = Map.insert gameRoomId newGameRoom (serverActiveGames ss)
+            let newServerGameStates = Map.insert lobbySessionIdHost tvarGameStHost $
+                                      Map.insert sIdGuest tvarGameStGuest $ 
+                                      serverGameStates ss
             writeTVar tvar ss{
                     serverLobby = newLobby, 
                     serverActiveGames = newActiveGames, 
-                    serverGameRoomIdCounter = gameRoomId}
+                    serverGameRoomIdCounter = gameRoomId,
+                    serverGameStates = newServerGameStates}
             pure (Just $ D.GameRoomId 0)
         _ -> pure Nothing 

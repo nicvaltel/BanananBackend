@@ -50,7 +50,6 @@ class Monad m => SessionRepo m where
   getUserIdBySessionId :: SessionId -> m (Maybe UserId)
 
 
--- TODO Important fix: make all updating messages in WSChan via TVar, not to update atomically all Server every time! (as it done for serverGameStates)
 class Monad m => WSRepo m where
   initWSConn :: WS.WSConnection -> SessionId -> m (Either Text ())
   disconnectWSConn :: WS.WSConnection -> SessionId -> m ()
