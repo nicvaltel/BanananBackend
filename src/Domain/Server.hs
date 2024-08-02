@@ -1,13 +1,12 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Domain.Server 
-  ( UserIdx
-  , UserId(..)
-  , SessionIdx
+  ( UserId(..)
   , SessionId(..)
   , SessionIdHost
   , SessionIdGuest
   , GameRoom(..)
-  , GameRoomIdx
   , GameRoomId(..)
+  , LobbyId(..)
   , SessionRepo(..)
   , WSRepo(..)
   , GameRepo(..)
@@ -22,20 +21,20 @@ import qualified WebSocketServer as WS
 import qualified Domain.GameBot.GameModel as G
 
 
-type SessionIdx = Int
 type SessionIdHost = SessionId
 type SessionIdGuest = SessionId
-newtype SessionId = SessionId {unSessionId :: SessionIdx}
-  deriving (Show, Eq, Ord)
+newtype SessionId = SessionId {unSessionId :: Int}
+  deriving (Show, Eq, Ord, Num)
 
-type UserIdx = Int
-newtype UserId = UserId {unUserId :: UserIdx}
-  deriving (Show, Eq, Ord)
+newtype UserId = UserId {unUserId :: Int}
+  deriving (Show, Eq, Ord, Num)
 
-type GameRoomIdx = Int
-newtype GameRoomId = GameRoomId {unGameRoomId :: GameRoomIdx}
-  deriving (Show, Eq, Ord)
+newtype GameRoomId = GameRoomId {unGameRoomId :: Int}
+  deriving (Show, Eq, Ord, Num)
 
+
+newtype LobbyId = LobbyId {unLobbyId :: Int}
+  deriving (Show, Eq, Ord, Num)
 
 data GameRoom = GameRoom
   { gameRoomGameType :: GameType
@@ -51,7 +50,7 @@ class Monad m => SessionRepo m where
   getUserIdBySessionId :: SessionId -> m (Maybe UserId)
 
 
--- TODO Important fix: make all updating messages in WSChan via TVar, not to update atomiccally all Server every time! (as it done for serverGameStates)
+-- TODO Important fix: make all updating messages in WSChan via TVar, not to update atomically all Server every time! (as it done for serverGameStates)
 class Monad m => WSRepo m where
   initWSConn :: WS.WSConnection -> SessionId -> m (Either Text ())
   disconnectWSConn :: WS.WSConnection -> SessionId -> m ()
@@ -61,9 +60,8 @@ class Monad m => WSRepo m where
   sendOutAllWSMessages :: m ()
 
 class Monad m => GameRepo m where
-  addGameToLobby :: SessionId -> GameType -> m ()
-  startGame :: SessionIdHost -> SessionIdGuest -> GameType -> m GameRoomId
-
+  addGameToLobby :: SessionId -> GameType -> m (Maybe LobbyId)
+  joinGame :: SessionIdGuest -> LobbyId -> m (Maybe GameRoomId)
 
 resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
 resolveSessionId = getUserIdBySessionId

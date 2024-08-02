@@ -37,8 +37,8 @@ instance WSRepo App where
   sendOutAllWSMessages = Mem.sendOutAllWSMessages
 
 instance GameRepo App where
-  addGameToLobby = undefined
-  startGame = undefined
+  addGameToLobby = Mem.addGameToLobby
+  joinGame = Mem.joinGame
 
 
 runSession :: AppState -> App a -> IO a
