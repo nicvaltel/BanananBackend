@@ -44,6 +44,7 @@ dependencies:
 - warp
 - time
 - conduit
+- extra
 
 
 default-extensions:

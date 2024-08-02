@@ -10,6 +10,8 @@ module Domain.Server
   , SessionRepo(..)
   , WSRepo(..)
   , GameRepo(..)
+  , LobbyError(..)
+  , SessionError(..)
   , resolveSessionId
   ) where
 
@@ -42,6 +44,15 @@ data GameRoom = GameRoom
   , gameRoomGuest :: SessionId
   } deriving (Show, Eq, Ord)
 
+data LobbyError =
+    LobbyErrorActiveGameIsGoingOn
+  | LobbyErrorGameOrderIsInTheLobby
+    deriving (Show, Eq, Ord)
+
+data SessionError =
+  SessionErrorSessionIdIsNotActive
+    deriving(Show, Eq, Ord)
+
 class Monad m => SessionRepo m where
   initNewGuestSession :: m (SessionId, UserId)
   initKnownUserSession :: UserId -> m (Maybe (SessionId, UserId))
@@ -51,7 +62,7 @@ class Monad m => SessionRepo m where
 
 
 class Monad m => WSRepo m where
-  initWSConn :: WS.WSConnection -> SessionId -> m (Either Text ())
+  initWSConn :: WS.WSConnection -> SessionId -> m (Either SessionError ())
   disconnectWSConn :: WS.WSConnection -> SessionId -> m ()
   pushInputWSMessage :: SessionId -> WS.WSMessage -> m ()
   processWSMessages :: ([WS.WSMessage] -> WS.WSMessage -> State G.GameState [WS.WSMessage]) -> SessionId -> m () -- TODO move partially it ot game logic
@@ -59,7 +70,7 @@ class Monad m => WSRepo m where
   sendOutAllWSMessages :: m ()
 
 class Monad m => GameRepo m where
-  addGameToLobby :: SessionId -> GameType -> m (Maybe LobbyId)
+  addGameToLobby :: SessionId -> GameType -> m (Either LobbyError LobbyId)
   joinGame :: SessionIdGuest -> LobbyId -> m (Maybe GameRoomId)
 
 resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)

@@ -167,13 +167,13 @@ getUserIdBySessionId sessionId = do
     Just sd -> pure $ Just (sessionDataUserId sd)
 
 
-initWSConn :: InMemory r m =>  WS.WSConnection -> D.SessionId -> m (Either Text ())
+initWSConn :: InMemory r m =>  WS.WSConnection -> D.SessionId -> m (Either D.SessionError ())
 initWSConn wsConn sessionId = do
   tvar :: TVar ServerState <- asks getter
   liftIO $ atomically $ do
     ss <- readTVar tvar
     case Map.lookup sessionId (serverSessions ss) of
-      Nothing -> pure $ Left "SessionId is not active"
+      Nothing -> pure $ Left D.SessionErrorSessionIdIsNotActive
       Just sd ->
         case sessioinDataWSChan sd of
           Just tvarWsChan -> do
@@ -317,21 +317,22 @@ sendOutAllWSMessages = do
   traverse_ sendOutWSMessage sIds
 
 
--- TODO check there is no active game for this sId
-addGameToLobby :: InMemory r m => D.SessionId -> GameType -> m (Maybe D.LobbyId)
+addGameToLobby :: InMemory r m => D.SessionId -> GameType -> m (Either D.LobbyError D.LobbyId)
 addGameToLobby sessionIdHost lobbyGameType = do
   tvar <- asks getter
   liftIO $ atomically $ do
     ss :: ServerState <- readTVar tvar
-    if Map.member sessionIdHost (serverGameStates ss) || any (\lb -> lobbySessionIdHost lb == sessionIdHost) (serverLobby ss)
-      then pure Nothing -- active game or game in lobby already exist
-      else do
-        let lobbyLobbyId = serverLobbyIdCounter ss + 1
-        let newServerLobby = LobbyElem{lobbyLobbyId, lobbySessionIdHost = sessionIdHost, lobbyGameType} : serverLobby ss
-        writeTVar tvar ss{
-              serverLobby = newServerLobby
-            , serverLobbyIdCounter = lobbyLobbyId}
-        pure $ Just lobbyLobbyId
+    if Map.member sessionIdHost (serverGameStates ss)
+      then pure $ Left D.LobbyErrorActiveGameIsGoingOn
+      else if any (\lb -> lobbySessionIdHost lb == sessionIdHost) (serverLobby ss)
+        then pure $ Left D.LobbyErrorGameOrderIsInTheLobby
+        else do
+          let lobbyLobbyId = serverLobbyIdCounter ss + 1
+          let newServerLobby = LobbyElem{lobbyLobbyId, lobbySessionIdHost = sessionIdHost, lobbyGameType} : serverLobby ss
+          writeTVar tvar ss{
+                serverLobby = newServerLobby
+              , serverLobbyIdCounter = lobbyLobbyId}
+          pure $ Right lobbyLobbyId
 
 
 

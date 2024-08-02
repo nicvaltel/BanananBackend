@@ -13,6 +13,7 @@ import qualified Domain.Server as D
 import qualified Adapter.InMemory.Server as Mem
 import qualified Domain.GameBot.Bot as Bot
 import qualified Adapter.HTTP.Main as HTTP
+import Data.Either.Extra(mapLeft)
 
 
 type WSThreadDelayMs = Int -- in milliseconds
@@ -36,7 +37,7 @@ runApp port wstimeout = do
   ss <- newTVarIO Mem.initialServerState
   let r = ss
   let act = \conn wsId -> runSession r (wsListener conn wsId)
-  let initConnection = \conn wsId -> runSession r (D.initWSConn conn wsId) -- TODO implement initSession not only for Guests, but for Reg users
+  let initConnection = \conn wsId -> runSession r (mapLeft tshow <$> D.initWSConn conn wsId) -- TODO implement initSession not only for Guests, but for Reg users
   let disconnect = \conn wsId -> runSession r (D.disconnectWSConn conn wsId)
   _ <- forkIO $ startWebSocketServer port wstimeout extractSessionIdFromRequestPath act initConnection disconnect
   putStrLn $ "Starting WebSocket server on port " <> tshow port <> "..."
