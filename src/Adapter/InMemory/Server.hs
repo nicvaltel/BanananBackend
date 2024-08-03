@@ -18,6 +18,8 @@ module Adapter.InMemory.Server
   , disconnectWSConn
   , addGameToLobby
   , joinGame
+  , initBotSession
+  , startGameWithBot
   ) where
 
 import Reexport
@@ -158,6 +160,23 @@ disconnectSession sessionId = do
                   , serverGameStates = newServerGameStates }
             writeTVar tvar newServerState
 
+initBotSession :: InMemory r m => m (D.SessionId, D.UserId)
+initBotSession = do
+  tvar :: TVar ServerState <- asks getter
+  liftIO $ atomically $ do
+    ss <- readTVar tvar
+    let userId = serverUserIdCounter ss + 1
+    let sessionId = serverSessionIdCounter ss + 1
+    let newSessionData = defaultSessionData userId
+    let newSessions = Map.insert sessionId newSessionData (serverSessions ss)
+    let newServerState = ss 
+          { serverUserIdCounter = userId 
+          , serverSessionIdCounter = sessionId
+          , serverSessions = newSessions
+          }
+    writeTVar tvar newServerState
+    pure (sessionId, userId)
+
 getUserIdBySessionId :: InMemory r m => D.SessionId -> m (Maybe D.UserId)
 getUserIdBySessionId sessionId = do
   tvar :: TVar ServerState <- asks getter
@@ -259,26 +278,43 @@ processWSMessagesEcho sessionId = do
             writeTVar tvar newServerState
 
 
-processWSMessages :: InMemory r m => ([WSMessage] -> WSMessage -> State G.GameState [WSMessage]) -> D.SessionId -> m ()
+processWSMessages :: InMemory r m => (D.SessionId -> WSMessage -> WSMessage) -> D.SessionId -> m ()
 processWSMessages processWSMsg sessionId = do 
   tvar <- asks getter
-  (msgs, tvarStates) <- liftIO $ atomically $ do
-    ss <- readTVar tvar
-    let gameStates = serverGameStates ss
-    case Map.lookup sessionId (serverSessions ss) of
-      Nothing -> pure ([], gameStates)
+  ss <- readTVarIO tvar
+  case Map.lookup sessionId (serverSessions ss) of
+    Nothing -> pure ()
+    Just sd -> do
+      case sessioinDataWSChan sd of
+        Nothing -> pure ()
+        Just tvarWsChan -> do
+          (inMsgs, conn) <- liftIO $ atomically $ do
+            chan@WSChan{wschanIn, wschanConn} <- readTVar tvarWsChan
+            let newWsChan = chan{wschanIn = []}
+            writeTVar tvarWsChan newWsChan
+            pure (wschanIn, wschanConn)
+          let outMsgs = map (processWSMsg sessionId) inMsgs
+          liftIO $ traverse_ (WS.sendTextData conn) outMsgs 
+
+
+processWSMessages' :: InMemory r m => ([WSMessage] -> WSMessage -> State G.GameState [WSMessage]) -> D.SessionId -> m ()
+processWSMessages' processWSMsg sessionId = do 
+  tvar <- asks getter
+  ss <- readTVarIO tvar
+  let gameStates = serverGameStates ss
+  msgs <- case Map.lookup sessionId (serverSessions ss) of
+      Nothing -> pure []
       Just sd -> do
         case sessioinDataWSChan sd of
-          Nothing -> pure ([], gameStates)
-          Just tvarWsChan -> do
+          Nothing -> pure []
+          Just tvarWsChan -> liftIO $ atomically $ do
             chan@WSChan{wschanIn} <- readTVar tvarWsChan
             let newWsChan = chan{wschanIn = []}
             writeTVar tvarWsChan newWsChan
-            pure (wschanIn, gameStates) 
-
+            pure wschanIn
   unless (null msgs) $ do
-    case Map.lookup sessionId tvarStates of
-      Nothing -> pure ()
+    case Map.lookup sessionId (serverGameStates ss) of
+      Nothing -> pure () -- TODO here is the problem!
       Just tvSt -> do
         outMsgs <- liftIO $ atomically $ do
           gs <- readTVar tvSt
@@ -364,3 +400,33 @@ joinGame sIdGuest lobbyId = do
                     serverGameStates = newServerGameStates}
             pure (Just $ D.GameRoomId 0)
         _ -> pure Nothing 
+
+
+startGameWithBot :: InMemory r m => D.SessionId -> GameType -> m (Either D.LobbyError D.GameRoomId)
+startGameWithBot sessionIdHost gameType = do
+  tvar <- asks getter
+  liftIO $ atomically $ do
+    ss :: ServerState <- readTVar tvar
+    if Map.member sessionIdHost (serverGameStates ss)
+      then pure $ Left D.LobbyErrorActiveGameIsGoingOn
+      else if any (\lb -> lobbySessionIdHost lb == sessionIdHost) (serverLobby ss)
+        then pure $ Left D.LobbyErrorGameOrderIsInTheLobby
+        else do
+          tvarGameStHost <- newTVar G.initialGameState
+          tvarGameStBot <- newTVar G.initialGameState
+          let sessionIdBot = undefined
+          let newGameRoom = D.GameRoom
+                { D.gameRoomGameType = gameType
+                , D.gameRoomHost = sessionIdHost
+                , D.gameRoomGuest = sessionIdBot
+                }
+          let gameRoomId = serverGameRoomIdCounter ss + 1
+          let newActiveGames = Map.insert gameRoomId newGameRoom (serverActiveGames ss)
+          let newServerGameStates = Map.insert sessionIdHost tvarGameStHost $
+                                    Map.insert sessionIdBot tvarGameStBot $ 
+                                    serverGameStates ss
+          writeTVar tvar ss{
+                  serverActiveGames = newActiveGames, 
+                  serverGameRoomIdCounter = gameRoomId,
+                  serverGameStates = newServerGameStates}
+          pure $ Right gameRoomId

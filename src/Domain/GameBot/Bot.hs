@@ -1,11 +1,12 @@
 module Domain.GameBot.Bot 
   ( processOneWSMessage
-  ) where
+  , processOneWSMessageEcho) where
 
 import Reexport
 import ClassyPrelude
 import WebSocketServer (WSMessage)
 import Domain.GameBot.GameModel (AppMod, GameState)
+import qualified Domain.Server as D
 
 type BoxWidth = Float
 type BoxHeight = Float
@@ -19,6 +20,9 @@ processOneWSMessage outMsgs msg = do
   put gs
   pure (msg : outMsgs)
 
+
+processOneWSMessageEcho :: D.SessionId -> WSMessage -> WSMessage
+processOneWSMessageEcho sId msg = msg
 
 
 

@@ -8,3 +8,26 @@ Get User:
       { "uId": "555123"
       , "sId": "777212"
       }
+
+
+
+WEB:
+  get "/"
+    redirect "/auth"
+  
+  get "/auth"
+    script fetch('/api/users') -- init sessionId
+      redirect "/lobby"
+  
+  get "/lobby"
+    script waitOpponent
+      redirect "/waitingroom"
+
+    script joinGame
+      redirect "/gameroom"
+
+    script startBot
+      redirect "/gameroom"
+
+
+

@@ -27,6 +27,7 @@ instance SessionRepo App where
   initKnownUserSession = Mem.initKnownUserSession
   restoreExistingSession = Mem.restoreExistingSession
   disconnectSession = Mem.disconnectSession
+  initBotSession = Mem.initBotSession
   getUserIdBySessionId = Mem.getUserIdBySessionId
 
 instance WSRepo App where
@@ -35,10 +36,12 @@ instance WSRepo App where
   processWSMessages = Mem.processWSMessages
   sendOutWSMessage = Mem.sendOutWSMessage
   sendOutAllWSMessages = Mem.sendOutAllWSMessages
+  disconnectWSConn = Mem.disconnectWSConn
 
 instance GameRepo App where
   addGameToLobby = Mem.addGameToLobby
   joinGame = Mem.joinGame
+  startGameWithBot = Mem.startGameWithBot
 
 
 runSession :: AppState -> App a -> IO a
