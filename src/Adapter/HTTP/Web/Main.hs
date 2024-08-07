@@ -8,7 +8,7 @@ import Network.HTTP.Types.Status
 import Network.Wai
 import Network.Wai.Middleware.Gzip
 import Network.Wai.Middleware.Static (staticPolicy', CacheContainer, addBase, initCaching, CachingStrategy (..))
-import qualified Adapter.HTTP.Web.Auth as WebAuth
+import qualified Adapter.HTTP.Web.Routes as WebRoutes
 
 
 mainWeb :: 
@@ -26,7 +26,7 @@ routes cachingStrategy= do
   middleware $ gzip $ def {gzipFiles = GzipCompress}
   middleware $ staticPolicy' cachingStrategy (addBase "static")
 
-  WebAuth.routes
+  WebRoutes.routes
 
   notFound $ do
     status status404

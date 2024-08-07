@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module Adapter.HTTP.API.Auth where
+module Adapter.HTTP.API.Routes where
 
 
 

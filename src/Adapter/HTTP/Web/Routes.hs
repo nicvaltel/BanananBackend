@@ -1,4 +1,4 @@
-module Adapter.HTTP.Web.Auth where
+module Adapter.HTTP.Web.Routes where
 
 import ClassyPrelude
 import Web.Scotty.Trans

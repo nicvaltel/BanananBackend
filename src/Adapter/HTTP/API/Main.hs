@@ -8,7 +8,7 @@ import Web.Scotty.Trans
 import Network.HTTP.Types.Status
 import Network.Wai
 import Network.Wai.Middleware.Gzip
-import qualified Adapter.HTTP.API.Auth as Auth
+import qualified Adapter.HTTP.API.Routes as Routes
 import Adapter.HTTP.API.Common
 
 mainAPI :: 
@@ -22,7 +22,7 @@ routesAPI ::
 routesAPI = do
   middleware $ gzip $ def {gzipFiles = GzipCompress}
 
-  Auth.routes
+  Routes.routes
 
   notFound $ do
     status status404
