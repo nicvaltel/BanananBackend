@@ -24,7 +24,7 @@ wsListener conn wsId = do
       msg <- liftIO $ receiveMessage conn
       -- liftIO $ sendTextData conn msg -- TODO it's a temporary mock, remove
       D.pushInputWSMessage wsId msg
-      D.processWSMessages Bot.processOneWSMessageEcho wsId
+      D.processWSMessages D.processOneWSMessageEcho wsId
 
 
 appLoopExample :: WSThreadDelayMs -> App ()

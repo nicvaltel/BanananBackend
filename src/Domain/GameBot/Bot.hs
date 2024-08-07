@@ -1,6 +1,5 @@
 module Domain.GameBot.Bot 
-  ( processOneWSMessage
-  , processOneWSMessageEcho) where
+  ( processOneWSMessage) where
 
 import Reexport
 import ClassyPrelude
@@ -21,8 +20,8 @@ processOneWSMessage outMsgs msg = do
   pure (msg : outMsgs)
 
 
-processOneWSMessageEcho :: D.SessionId -> WSMessage -> WSMessage
-processOneWSMessageEcho sId msg = msg
+-- processOneWSMessageEcho :: D.SessionId -> WSMessage -> WSMessage
+-- processOneWSMessageEcho sId msg = msg
 
 
 

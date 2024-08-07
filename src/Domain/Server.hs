@@ -13,6 +13,7 @@ module Domain.Server
   , LobbyError(..)
   , SessionError(..)
   , resolveSessionId
+  , processOneWSMessageEcho
   ) where
 
 
@@ -20,7 +21,9 @@ import Reexport
 import ClassyPrelude
 import Domain.Game
 import qualified WebSocketServer as WS
+import WebSocketServer(WSMessage, WSChan(..), WSConnection)
 import qualified Domain.GameBot.GameModel as G
+import qualified Data.Text as Text
 
 
 type SessionIdHost = SessionId
@@ -63,12 +66,13 @@ class Monad m => SessionRepo m where
 
 
 class Monad m => WSRepo m where
-  initWSConn :: WS.WSConnection -> SessionId -> m (Either SessionError ())
-  disconnectWSConn :: WS.WSConnection -> SessionId -> m ()
-  pushInputWSMessage :: SessionId -> WS.WSMessage -> m ()
-  processWSMessages :: (SessionId -> WS.WSMessage -> WS.WSMessage) -> SessionId -> m () -- TODO move partially it ot game logic
+  initWSConn :: WSConnection -> SessionId -> m (Either SessionError ())
+  disconnectWSConn :: WSConnection -> SessionId -> m ()
+  pushInputWSMessage :: SessionId -> WSMessage -> m ()
+  processWSMessages :: (SessionId -> WSMessage -> m (Maybe (WSConnection, WSMessage))) -> SessionId -> m () -- TODO move partially it ot game logic
   sendOutWSMessage :: SessionId -> m ()
   sendOutAllWSMessages :: m ()
+  getWSChanBySessionId :: SessionId -> m (Maybe WSChan)
 
 class Monad m => GameRepo m where
   addGameToLobby :: SessionId -> GameType -> m (Either LobbyError LobbyId)
@@ -77,3 +81,21 @@ class Monad m => GameRepo m where
 
 resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
 resolveSessionId = getUserIdBySessionId
+
+processOneWSMessageEcho :: (SessionRepo m, WSRepo m) => SessionId -> WS.WSMessage -> m (Maybe (WS.WSConnection, WS.WSMessage))
+processOneWSMessageEcho sId wsmsg = do
+  case Text.splitAt 5 wsmsg of
+    ("lobb:", msg) -> pure Nothing
+    ("chat:", msg) -> pure Nothing
+    ("echo:", msg) -> do
+      mayChan <- getWSChanBySessionId sId
+      case mayChan of
+        Just WSChan{wschanConn} -> pure $ Just (wschanConn, msg)
+        Nothing -> pure Nothing
+    _ -> do -- no prefix for active Game ws messages
+      mayChan <- getWSChanBySessionId sId
+      case mayChan of
+        Just WSChan{wschanConn} -> pure $ Just (wschanConn, wsmsg)
+        Nothing -> pure Nothing
+
+

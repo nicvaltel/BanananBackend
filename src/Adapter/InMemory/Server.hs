@@ -20,6 +20,7 @@ module Adapter.InMemory.Server
   , joinGame
   , initBotSession
   , startGameWithBot
+  , getWSChanBySessionId
   ) where
 
 import Reexport
@@ -29,7 +30,7 @@ import Domain.Game (GameType)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified WebSocketServer as WS 
-import WebSocketServer(WSMessage, WSChan(..))
+import WebSocketServer(WSMessage, WSChan(..), WSConnection)
 import qualified Domain.GameBot.GameModel as G
 
 
@@ -244,6 +245,19 @@ sendOutWSMessage sessionId = do
                 atomically (writeTVar tvarWsChan newWsChan)
                 liftIO $ WS.sendTextData wschanConn msg 
 
+getWSChanBySessionId :: InMemory r m => D.SessionId -> m (Maybe WSChan)
+getWSChanBySessionId sId = do
+  tvar :: TVar ServerState <- asks getter
+  ss <- readTVarIO tvar
+  case Map.lookup sId (serverSessions ss) of
+      Nothing -> pure Nothing
+      Just sd ->
+        case sessioinDataWSChan sd of
+          Nothing -> pure Nothing
+          Just tvarWsChan -> do
+            chan <- readTVarIO tvarWsChan
+            pure $ Just chan
+
 
 pushInputWSMessage :: InMemory r m => D.SessionId -> WSMessage -> m ()
 pushInputWSMessage sessionId msg = do
@@ -278,23 +292,23 @@ processWSMessagesEcho sessionId = do
             writeTVar tvar newServerState
 
 
-processWSMessages :: InMemory r m => (D.SessionId -> WSMessage -> WSMessage) -> D.SessionId -> m ()
-processWSMessages processWSMsg sessionId = do 
+processWSMessages :: InMemory r m => (D.SessionId -> WSMessage -> m (Maybe (WSConnection, WSMessage))) -> D.SessionId -> m ()
+processWSMessages processWSMsg sId = do 
   tvar <- asks getter
   ss <- readTVarIO tvar
-  case Map.lookup sessionId (serverSessions ss) of
+  case Map.lookup sId (serverSessions ss) of
     Nothing -> pure ()
     Just sd -> do
       case sessioinDataWSChan sd of
         Nothing -> pure ()
         Just tvarWsChan -> do
-          (inMsgs, conn) <- liftIO $ atomically $ do
-            chan@WSChan{wschanIn, wschanConn} <- readTVar tvarWsChan
+          inMsgs <- liftIO $ atomically $ do
+            chan@WSChan{wschanIn} <- readTVar tvarWsChan
             let newWsChan = chan{wschanIn = []}
             writeTVar tvarWsChan newWsChan
-            pure (wschanIn, wschanConn)
-          let outMsgs = map (processWSMsg sessionId) inMsgs
-          liftIO $ traverse_ (WS.sendTextData conn) outMsgs 
+            pure wschanIn
+          mayOutConnMsgs <- traverse (processWSMsg sId) inMsgs
+          liftIO $ traverse_ (uncurry WS.sendTextData) (catMaybes mayOutConnMsgs) 
 
 
 processWSMessages' :: InMemory r m => ([WSMessage] -> WSMessage -> State G.GameState [WSMessage]) -> D.SessionId -> m ()
@@ -430,3 +444,5 @@ startGameWithBot sessionIdHost gameType = do
                   serverGameRoomIdCounter = gameRoomId,
                   serverGameStates = newServerGameStates}
           pure $ Right gameRoomId
+
+

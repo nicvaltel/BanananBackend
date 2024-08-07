@@ -37,6 +37,7 @@ instance WSRepo App where
   sendOutWSMessage = Mem.sendOutWSMessage
   sendOutAllWSMessages = Mem.sendOutAllWSMessages
   disconnectWSConn = Mem.disconnectWSConn
+  getWSChanBySessionId = Mem.getWSChanBySessionId
 
 instance GameRepo App where
   addGameToLobby = Mem.addGameToLobby
