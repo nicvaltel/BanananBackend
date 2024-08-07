@@ -4,48 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lobby Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        .container {
-            text-align: center;
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .container h1 {
-            margin-bottom: 20px;
-        }
-        .container button {
-            padding: 10px 20px;
-            margin: 10px;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        .container button:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <link rel="stylesheet" href="css/lobby.css">
 </head>
 <body>
     <div class="container">
         <h1>Lobby Page</h1>
         <button id="waitOpponent">Wait for Opponent</button>
         <button id="startBot">Start Game with Bot</button>
+        
+        <h2>Game Lobby</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Rating</th>
+                    <th>Game Type</th>
+                    <th>Mode</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Table data will be populated here by JavaScript -->
+            </tbody>
+        </table>
     </div>
-
+    
     <script src="scripts/lobby.js"></script>
 </body>
 </html>

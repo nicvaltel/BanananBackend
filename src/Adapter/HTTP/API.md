@@ -9,6 +9,17 @@ Get User:
       , "sId": "777212"
       }
 
+Get LobbyTalbe:
+  Request:
+    GET /api/lobbytable
+
+  Responce:
+    Success:
+      200
+      { "uId": "555123"
+      , "sId": "777212"
+      }
+  
 
 
 WEB:
