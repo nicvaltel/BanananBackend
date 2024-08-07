@@ -13,26 +13,29 @@ document.addEventListener('DOMContentLoaded', function() {
       tableBody.innerHTML = ''; // Clear the table body
 
       data.forEach(row => {
-          const tr = document.createElement('tr');
-          
-          const playerNameTd = document.createElement('td');
-          playerNameTd.textContent = row.playerName;
-          tr.appendChild(playerNameTd);
+        const tr = document.createElement('tr');
+        tr.addEventListener('click', function() {
+            window.location.href = row.link; 
+        });
 
-          const ratingTd = document.createElement('td');
-          ratingTd.textContent = row.rating;
-          tr.appendChild(ratingTd);
+        const playerNameTd = document.createElement('td');
+        playerNameTd.textContent = row.playerName;
+        tr.appendChild(playerNameTd);
 
-          const gameTypeTd = document.createElement('td');
-          gameTypeTd.textContent = row.gameType;
-          tr.appendChild(gameTypeTd);
+        const ratingTd = document.createElement('td');
+        ratingTd.textContent = row.rating;
+        tr.appendChild(ratingTd);
 
-          const gameModeTd = document.createElement('td');
-          gameModeTd.textContent = row.gameMode;
-          tr.appendChild(gameModeTd);
+        const gameTypeTd = document.createElement('td');
+        gameTypeTd.textContent = row.gameType;
+        tr.appendChild(gameTypeTd);
 
-          tableBody.appendChild(tr);
-      });
+        const gameModeTd = document.createElement('td');
+        gameModeTd.textContent = row.gameMode;
+        tr.appendChild(gameModeTd);
+
+        tableBody.appendChild(tr);
+    });
   }
 
   document.getElementById('startBot').addEventListener('click', function() {
@@ -41,7 +44,20 @@ document.addEventListener('DOMContentLoaded', function() {
   
   document.getElementById('waitOpponent').addEventListener('click', function() {
     console.log('Wait for Opponent button pressed');
-  });
+    fetch('/api/addgametolobby', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'wait_for_opponent' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Game added to lobby:', data);
+        fetchData(); // Refresh table data after adding game
+    })
+    .catch(error => console.error('Error adding game to lobby:', error));
+});
 
   // Fetch data initially and then every second
   fetchData();

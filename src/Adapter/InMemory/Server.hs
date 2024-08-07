@@ -21,6 +21,7 @@ module Adapter.InMemory.Server
   , initBotSession
   , startGameWithBot
   , getWSChanBySessionId
+  , getLobbyEntries
   ) where
 
 import Reexport
@@ -32,12 +33,10 @@ import qualified Data.Set as Set
 import qualified WebSocketServer as WS 
 import WebSocketServer(WSMessage, WSChan(..), WSConnection)
 import qualified Domain.GameBot.GameModel as G
-
+import Domain.Server (LobbyEntry(..))
 
 type InMemory r m = (Has (TVar ServerState) r, MonadReader r m, MonadIO m)
 
-data LobbyElem = LobbyElem {lobbyLobbyId :: D.LobbyId, lobbySessionIdHost :: D.SessionId, lobbyGameType :: GameType}
-  deriving (Show, Eq, Ord)
 
 
 
@@ -45,7 +44,7 @@ data ServerState = ServerState {
     serverSessions :: Map D.SessionId SessionData
   , serverInactiveSessions :: Map D.SessionId SessionData 
   , serverKnowUsers :: Set D.UserId
-  , serverLobby :: [LobbyElem]
+  , serverLobby :: [LobbyEntry]
   , serverActiveGames :: Map D.GameRoomId D.GameRoom
   , serverUserIdCounter :: D.UserId
   , serverSessionIdCounter :: D.SessionId -- common for all UserTypes
@@ -378,12 +377,14 @@ addGameToLobby sessionIdHost lobbyGameType = do
         then pure $ Left D.LobbyErrorGameOrderIsInTheLobby
         else do
           let lobbyLobbyId = serverLobbyIdCounter ss + 1
-          let newServerLobby = LobbyElem{lobbyLobbyId, lobbySessionIdHost = sessionIdHost, lobbyGameType} : serverLobby ss
+          let newServerLobby = LobbyEntry{lobbyLobbyId, lobbySessionIdHost = sessionIdHost, lobbyGameType} : serverLobby ss
           writeTVar tvar ss{
                 serverLobby = newServerLobby
               , serverLobbyIdCounter = lobbyLobbyId}
           pure $ Right lobbyLobbyId
 
+getLobbyEntries :: InMemory r m => m [LobbyEntry]
+getLobbyEntries = asks getter >>= (serverLobby <$>) . readTVarIO 
 
 
 joinGame :: InMemory r m => D.SessionIdGuest -> D.LobbyId -> m (Maybe D.GameRoomId)
@@ -393,7 +394,7 @@ joinGame sIdGuest lobbyId = do
   liftIO $ atomically $ do
     ss :: ServerState <- readTVar tvar
     case partition (\lb -> lobbyLobbyId lb == lobbyId) (serverLobby ss) of
-        ([LobbyElem{lobbySessionIdHost, lobbyGameType}],newLobby) -> do 
+        ([LobbyEntry{lobbySessionIdHost, lobbyGameType}],newLobby) -> do 
             tvarGameStHost <- newTVar G.initialGameState
             tvarGameStGuest <- newTVar G.initialGameState
 

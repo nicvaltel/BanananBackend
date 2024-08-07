@@ -12,6 +12,9 @@ import Text.Printf (printf)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Aeson (decode, Value, FromJSON (..), fromJSON)
 import System.Random
+import Domain.Server (LobbyEntry(..))
+import Domain.Game (GameType(..))
+import Data.Maybe (fromJust)
 
 
 -- routes :: (MonadUnliftIO m) => ScottyT m ()
@@ -41,7 +44,7 @@ mkJsonIntPairString (name, val) = "\"" ++ name ++ "\":" ++ show val
 wrapJsonStrings :: [String] -> String
 wrapJsonStrings strs = "{" ++ intercalate "," strs ++ "}"
 
-routes :: (MonadUnliftIO m, D.SessionRepo m) => ScottyT m ()
+routes :: (MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) => ScottyT m ()
 routes = do
 
   get "/api/users" $ do
@@ -51,18 +54,31 @@ routes = do
     json strJson
 
   get "/api/lobbytable" $ do
-    -- let mockLobbyJsonByteStr = BS.pack " [ \
-    --   \ {\"playerName\": \"Anonymous\", \"rating\": \"100\", \"gameType\": \"10\", \"gameMode\": \"Casual\"}, \
-    --   \ {\"playerName\": \"Anonymous\", \"rating\": \"100\", \"gameType\": \"10\", \"gameMode\": \"Casual\"}, \
-    --   \ {\"playerName\": \"Anonymous\", \"rating\": \"100\", \"gameType\": \"10\", \"gameMode\": \"Casual\"}, \
-    --   \ ]"
-    mockLobbyJsonStrs <- liftIO $ traverse  (const mkRandomLobbyTableMock) [1 .. 12 :: Int]
-    let mockLobbyJsonByteStr = BS.pack $ "[" ++ intercalate "," mockLobbyJsonStrs ++ "]"
-    let newsJsonObject = case decode mockLobbyJsonByteStr of
+    lobbys <- lift D.getLobbyEntries
+    let lobbyJsonByteStr = lobbysToJsonString lobbys
+    let newsJsonObject = case decode lobbyJsonByteStr of
                            Just obj -> obj
                            Nothing -> error "Failed to decode JSON mockLobbyJsonByteStr"
     json (newsJsonObject :: Value)
+  
+  post "/api/addgametolobby" $ do
+    (sId, uId) <- reqCurrentUserId
+    success <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
+    case success of
+      Left lobbyErr -> print lobbyErr
+      Right (D.LobbyId lid) -> json $ tshow lid 
 
+
+lobbysToJsonString :: [D.LobbyEntry] -> BS.ByteString
+lobbysToJsonString lobbys = BS.pack $ "[" ++ intercalate "," (map lobbyToStr lobbys) ++ "]"
+  where
+    lobbyToStr LobbyEntry{lobbySessionIdHost, lobbyGameType = GameType {gameTypeRules, gameTypeRated}}=
+      printf "{\"playerName\": \"%s\", \"rating\": \"%d\", \"gameType\": \"%d\", \"gameMode\": \"%s\", \"link\": \"%s\"}" 
+                ("Player_" ++ show lobbySessionIdHost) 
+                (100 :: Int) 
+                gameTypeRules 
+                (if gameTypeRated then "Rated" else "Casual" :: String)
+                ("/gameroom_" ++ show (D.unSessionId lobbySessionIdHost) :: String)
 
 mkRandomLobbyTableMock :: IO String
 mkRandomLobbyTableMock = do

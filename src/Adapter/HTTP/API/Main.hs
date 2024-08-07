@@ -12,12 +12,12 @@ import qualified Adapter.HTTP.API.Routes as Routes
 import Adapter.HTTP.API.Common
 
 mainAPI :: 
-  (MonadUnliftIO m, D.SessionRepo m) =>
+  (MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) =>
   (m Response -> IO Response) -> IO Application
 mainAPI runner = scottyAppT defaultOptions runner routesAPI
 
 routesAPI :: 
-  ( MonadUnliftIO m, D.SessionRepo m) =>
+  ( MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) =>
   ScottyT m ()
 routesAPI = do
   middleware $ gzip $ def {gzipFiles = GzipCompress}

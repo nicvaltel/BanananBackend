@@ -41,6 +41,7 @@ instance WSRepo App where
 
 instance GameRepo App where
   addGameToLobby = Mem.addGameToLobby
+  getLobbyEntries = Mem.getLobbyEntries
   joinGame = Mem.joinGame
   startGameWithBot = Mem.startGameWithBot
 

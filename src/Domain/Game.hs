@@ -1,10 +1,9 @@
 module Domain.Game
-  ( GameType(..)
-
-  ) where
+  ( GameType (..),
+  )
+where
 
 import ClassyPrelude
 
-data GameType = GameTypeStandart
+data GameType = GameType {gameTypeRules :: Int, gameTypeRated :: Bool}
   deriving (Show, Eq, Ord)
-

@@ -12,6 +12,7 @@ module Domain.Server
   , GameRepo(..)
   , LobbyError(..)
   , SessionError(..)
+  , LobbyEntry(..)
   , resolveSessionId
   , processOneWSMessageEcho
   ) where
@@ -47,6 +48,10 @@ data GameRoom = GameRoom
   , gameRoomGuest :: SessionId
   } deriving (Show, Eq, Ord)
 
+data LobbyEntry = LobbyEntry {lobbyLobbyId :: LobbyId, lobbySessionIdHost :: SessionId, lobbyGameType :: GameType}
+  deriving (Show, Eq, Ord)
+
+
 data LobbyError =
     LobbyErrorActiveGameIsGoingOn
   | LobbyErrorGameOrderIsInTheLobby
@@ -76,6 +81,7 @@ class Monad m => WSRepo m where
 
 class Monad m => GameRepo m where
   addGameToLobby :: SessionId -> GameType -> m (Either LobbyError LobbyId)
+  getLobbyEntries :: m [LobbyEntry]
   joinGame :: SessionIdGuest -> LobbyId -> m (Maybe GameRoomId)
   startGameWithBot :: SessionId -> GameType -> m (Either LobbyError GameRoomId)
 
