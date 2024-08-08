@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Adapter.HTTP.Main (main) where
 
 import ClassyPrelude

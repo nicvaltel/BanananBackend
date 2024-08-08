@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Adapter.HTTP.Web.Main where
 
 import qualified Domain.Server as D
@@ -12,14 +11,14 @@ import qualified Adapter.HTTP.Web.Routes as WebRoutes
 
 
 mainWeb :: 
-  (MonadUnliftIO m, D.SessionRepo m) =>
+  (MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) =>
   (m Response -> IO Response) -> IO Application
 mainWeb runner = do
   cacheContainer <- initCaching PublicStaticCaching
   scottyAppT defaultOptions runner $ routes cacheContainer
 
 routes :: 
-  ( MonadUnliftIO m, D.SessionRepo m) =>
+  ( MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) =>
   CacheContainer -> ScottyT m ()
 routes cachingStrategy= do
 

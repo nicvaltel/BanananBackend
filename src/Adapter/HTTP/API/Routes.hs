@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Adapter.HTTP.API.Routes where
 
 
@@ -10,32 +9,10 @@ import Adapter.HTTP.API.Common
 import Adapter.HTTP.Common
 import Text.Printf (printf)
 import qualified Data.ByteString.Lazy.Char8 as BS
-import Data.Aeson (decode, Value, FromJSON (..), fromJSON)
+import Data.Aeson (decode, Value)
 import System.Random
 import Domain.Server (LobbyEntry(..))
 import Domain.Game (GameType(..))
-import Data.Maybe (fromJust)
-
-
--- routes :: (MonadUnliftIO m) => ScottyT m ()
--- routes = do
---   -- register
---   post "/api/auth/register" $ do
---    pure ()
-
---   -- verify email
---   post "/api/auth/verifyEmail" $ do
---    pure ()
-
---   -- login 
---   post "/api/auth/login" $ do
---         pure ()
-
---   -- get user
---   get "/api/users" $ do
---     pure ()
-
-
 
 
 mkJsonIntPairString :: (String, Int) -> String
@@ -61,24 +38,32 @@ routes = do
                            Nothing -> error "Failed to decode JSON mockLobbyJsonByteStr"
     json (newsJsonObject :: Value)
   
+  get "/api/checklobbygamestatus/:lobbyid" $ do
+    lobbyId :: Int <- captureParam "lobbyid"
+    mayGameRoomId <- lift $ D.checkLobbyGameStatus (D.LobbyId lobbyId)
+    case mayGameRoomId of
+      Nothing -> pure ()
+      Just (D.GameRoomId roomId) -> json $ "/gameroom/" <> show roomId
+
+
   post "/api/addgametolobby" $ do
     (sId, uId) <- reqCurrentUserId
-    success <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
-    case success of
+    eitherLobbyId <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
+    case eitherLobbyId of
       Left lobbyErr -> print lobbyErr
-      Right (D.LobbyId lid) -> json $ tshow lid 
+      Right (D.LobbyId lobbyId) -> json $ show lobbyId
 
 
 lobbysToJsonString :: [D.LobbyEntry] -> BS.ByteString
 lobbysToJsonString lobbys = BS.pack $ "[" ++ intercalate "," (map lobbyToStr lobbys) ++ "]"
   where
-    lobbyToStr LobbyEntry{lobbySessionIdHost, lobbyGameType = GameType {gameTypeRules, gameTypeRated}}=
+    lobbyToStr LobbyEntry{lobbyLobbyId, lobbySessionIdHost, lobbyGameType = GameType {gameTypeRules, gameTypeRated}}=
       printf "{\"playerName\": \"%s\", \"rating\": \"%d\", \"gameType\": \"%d\", \"gameMode\": \"%s\", \"link\": \"%s\"}" 
                 ("Player_" ++ show lobbySessionIdHost) 
                 (100 :: Int) 
                 gameTypeRules 
                 (if gameTypeRated then "Rated" else "Casual" :: String)
-                ("/gameroom_" ++ show (D.unSessionId lobbySessionIdHost) :: String)
+                ("/gameroom/" ++ show (D.unLobbyId lobbyLobbyId) :: String)
 
 mkRandomLobbyTableMock :: IO String
 mkRandomLobbyTableMock = do

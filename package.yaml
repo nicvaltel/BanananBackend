@@ -51,6 +51,7 @@ default-extensions:
 - NoImplicitPrelude
 - OverloadedStrings
 - NamedFieldPuns
+- ScopedTypeVariables
 
 
 ghc-options:

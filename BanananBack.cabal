@@ -60,6 +60,7 @@ library
       NoImplicitPrelude
       OverloadedStrings
       NamedFieldPuns
+      ScopedTypeVariables
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       aeson
@@ -99,6 +100,7 @@ executable BanananBack-exe
       NoImplicitPrelude
       OverloadedStrings
       NamedFieldPuns
+      ScopedTypeVariables
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       BanananBack
@@ -140,6 +142,7 @@ test-suite BanananBack-test
       NoImplicitPrelude
       OverloadedStrings
       NamedFieldPuns
+      ScopedTypeVariables
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       BanananBack

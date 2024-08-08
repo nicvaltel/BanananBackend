@@ -1,6 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Adapter.InMemory.Server 
   ( ServerState
   , initialServerState
@@ -377,7 +376,7 @@ addGameToLobby sessionIdHost lobbyGameType = do
         then pure $ Left D.LobbyErrorGameOrderIsInTheLobby
         else do
           let lobbyLobbyId = serverLobbyIdCounter ss + 1
-          let newServerLobby = LobbyEntry{lobbyLobbyId, lobbySessionIdHost = sessionIdHost, lobbyGameType} : serverLobby ss
+          let newServerLobby = LobbyEntry{lobbyLobbyId, lobbySessionIdHost = sessionIdHost, lobbyGameType, lobbyMaybeGameRoomId = Nothing} : serverLobby ss
           writeTVar tvar ss{
                 serverLobby = newServerLobby
               , serverLobbyIdCounter = lobbyLobbyId}
@@ -394,7 +393,7 @@ joinGame sIdGuest lobbyId = do
   liftIO $ atomically $ do
     ss :: ServerState <- readTVar tvar
     case partition (\lb -> lobbyLobbyId lb == lobbyId) (serverLobby ss) of
-        ([LobbyEntry{lobbySessionIdHost, lobbyGameType}],newLobby) -> do 
+        ([lbEntry@LobbyEntry{lobbySessionIdHost, lobbyGameType}],newLobby) -> do 
             tvarGameStHost <- newTVar G.initialGameState
             tvarGameStGuest <- newTVar G.initialGameState
 
@@ -409,7 +408,7 @@ joinGame sIdGuest lobbyId = do
                                       Map.insert sIdGuest tvarGameStGuest $ 
                                       serverGameStates ss
             writeTVar tvar ss{
-                    serverLobby = newLobby, 
+                    serverLobby = lbEntry{lobbyMaybeGameRoomId = Just gameRoomId} : newLobby, 
                     serverActiveGames = newActiveGames, 
                     serverGameRoomIdCounter = gameRoomId,
                     serverGameStates = newServerGameStates}

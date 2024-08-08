@@ -38,6 +38,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  function checkLobbyStatus(lobbyId) {
+    const intervalId = setInterval(function() {
+        fetch(`/api/checklobbygamestatus/${lobbyId}`)
+            .then(response => response.text())
+            .then(data => {
+                if (data) { // If the response is not empty
+                    console.log(data);
+                    clearInterval(intervalId); // Stop polling
+                    window.location.href = data; // Redirect to the URL in the response
+                }
+            })
+            .catch(error => {
+                clearInterval(intervalId); // Stop polling on error
+                console.error('Error checking lobby game status:', error);
+            });
+    }, 500);
+  }
+
+
   document.getElementById('startBot').addEventListener('click', function() {
     console.log('Start Game with Bot button pressed');
   });
@@ -52,14 +71,15 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify({ action: 'wait_for_opponent' })
     })
     .then(response => response.json())
-    .then(data => {
-        console.log('Game added to lobby:', data);
+    .then(dataLobbyId => {
+        console.log('Game added to lobby:', dataLobbyId);
         fetchData(); // Refresh table data after adding game
+        checkLobbyStatus(dataLobbyId); // Start polling the lobby status
     })
     .catch(error => console.error('Error adding game to lobby:', error));
 });
 
-  // Fetch data initially and then every second
+  // Fetch data initially and then every 0.5 seconds
   fetchData();
   setInterval(fetchData, 500); // 0.5 second
 });

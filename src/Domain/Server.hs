@@ -15,6 +15,8 @@ module Domain.Server
   , LobbyEntry(..)
   , resolveSessionId
   , processOneWSMessageEcho
+  , checkGameInLobby
+  , checkLobbyGameStatus
   ) where
 
 
@@ -48,7 +50,7 @@ data GameRoom = GameRoom
   , gameRoomGuest :: SessionId
   } deriving (Show, Eq, Ord)
 
-data LobbyEntry = LobbyEntry {lobbyLobbyId :: LobbyId, lobbySessionIdHost :: SessionId, lobbyGameType :: GameType}
+data LobbyEntry = LobbyEntry {lobbyLobbyId :: LobbyId, lobbySessionIdHost :: SessionId, lobbyGameType :: GameType, lobbyMaybeGameRoomId :: Maybe GameRoomId}
   deriving (Show, Eq, Ord)
 
 
@@ -103,5 +105,15 @@ processOneWSMessageEcho sId wsmsg = do
       case mayChan of
         Just WSChan{wschanConn} -> pure $ Just (wschanConn, wsmsg)
         Nothing -> pure Nothing
+        
+
+checkGameInLobby :: GameRepo m => LobbyId -> m Bool
+checkGameInLobby lbId = any ((==) lbId . lobbyLobbyId) <$> getLobbyEntries
 
 
+checkLobbyGameStatus :: GameRepo m => LobbyId -> m (Maybe GameRoomId)
+checkLobbyGameStatus lbId = do
+  lobbys <- getLobbyEntries
+  case filter ((==) lbId . lobbyLobbyId) lobbys of
+    [lobby] -> pure (lobbyMaybeGameRoomId lobby)
+    _ -> pure Nothing
