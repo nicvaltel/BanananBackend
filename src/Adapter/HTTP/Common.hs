@@ -30,14 +30,14 @@ getCookie key = do
 
 
 
-setSessionIdInCookie :: MonadIO m => D.SessionId -> ActionT m ()
-setSessionIdInCookie (D.SessionId sId) = do
+setByteStringValueInCookie :: MonadIO m => ByteString -> ByteString -> ActionT m ()
+setByteStringValueInCookie bsName bsValue = do
   let oneMonth = 24 * 60 * 60 * 30
   curTime <- liftIO getCurrentTime
   setCookie $ def{
-      setCookieName = "sId"
+      setCookieName = bsName
     , setCookiePath = Just "/"
-    , setCookieValue = T.encodeUtf8 $ tshow sId
+    , setCookieValue = bsValue
     , setCookieExpires = Just $ addUTCTime oneMonth curTime
     , setCookieHttpOnly = True
     , setCookieSecure = False
@@ -48,26 +48,16 @@ setSessionIdInCookie (D.SessionId sId) = do
 getCurrentUserId :: (D.SessionRepo m) => ActionT m (Maybe (D.SessionId, D.UserId))
 getCurrentUserId = do
   maySIdText <- getCookie "sId"
-  let maySessionId :: Maybe D.SessionId = do 
+  mayToken <- getCookie "sIdToken"
+  let maySessionIdToken :: Maybe (D.SessionId, D.Token) = do 
         sIdText :: Text <- maySIdText
         sId :: Int <- safeRead (unpack sIdText)
-        pure $ D.SessionId sId
-  case maySessionId of
+        token <- mayToken
+        pure (D.SessionId sId, token)
+  case maySessionIdToken of
     Nothing -> pure Nothing
-    Just sessionId -> do
-        mayUserId <- lift $ D.resolveSessionId  sessionId
-        case mayUserId of
-          Nothing -> pure Nothing
-          Just uId -> pure $ Just (sessionId, uId) 
-
-  -- case maySId of
-  --   Nothing -> pure Nothing
-  --   Just sIdText -> case read (unpack sIdText) of
-  --     Nothing -> pure Nothing
-  --     Just (sId :: Int) -> do
-  --       let sessionId = D.SessionId sId
-  --       mayUserId <- lift $ D.resolveSessionId  sessionId
-  --       case mayUserId of
-  --         Nothing -> pure Nothing
-  --         Just uId -> pure $ Just (sessionId, uId) 
-
+    Just (sessionId, token) -> do
+      mayUserId <- lift $ D.checkSessionIdToken sessionId token
+      case mayUserId of
+        Nothing -> pure Nothing
+        Just uId -> pure $ Just (sessionId, uId) 

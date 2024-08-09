@@ -28,7 +28,7 @@ instance SessionRepo App where
   restoreExistingSession = Mem.restoreExistingSession
   disconnectSession = Mem.disconnectSession
   initBotSession = Mem.initBotSession
-  getUserIdBySessionId = Mem.getUserIdBySessionId
+  getSessionDataBySessionId = Mem.getSessionDataBySessionId
 
 instance WSRepo App where
   initWSConn = Mem.initWSConn

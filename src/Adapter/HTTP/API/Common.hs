@@ -16,14 +16,11 @@ errorResponce val = object [ "error" .= val]
 
 -- * Session
 
-reqCurrentUserId :: (D.SessionRepo m) => ActionT m (D.SessionId, D.UserId)
+reqCurrentUserId :: (D.SessionRepo m) => ActionT m (D.SessionId, D.UserId, Maybe D.Token)
 reqCurrentUserId = do
   maySessionIdUserId <- getCurrentUserId
   case maySessionIdUserId of
-    Just sessionIdUserId -> pure sessionIdUserId
-    Nothing -> lift D.initNewGuestSession
-
-  -- pure (D.SessionId 777, D.UserId 555)
-  -- case maySessionIdUserId of
-  --   Nothing -> redirect "/auth/login"
-  --   Just sessionIdUserId -> pure sessionIdUserId
+    Just (sId, uId) -> pure (sId, uId, Nothing)
+    Nothing -> lift $ do
+      (sId, uId, token) <- D.initNewGuestSession
+      pure (sId, uId, Just token)

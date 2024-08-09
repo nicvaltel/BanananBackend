@@ -13,10 +13,14 @@ module Domain.Server
   , LobbyError(..)
   , SessionError(..)
   , LobbyEntry(..)
+  , SessionData(..)
+  , defaultSessionData
   , resolveSessionId
   , processOneWSMessageEcho
   , checkGameInLobby
   , checkLobbyGameStatus
+  , Token
+  , checkSessionIdToken
   ) where
 
 
@@ -28,6 +32,7 @@ import WebSocketServer(WSMessage, WSChan(..), WSConnection)
 import qualified Domain.GameBot.GameModel as G
 import qualified Data.Text as Text
 
+type Token = Text
 
 type SessionIdHost = SessionId
 type SessionIdGuest = SessionId
@@ -54,6 +59,19 @@ data LobbyEntry = LobbyEntry {lobbyLobbyId :: LobbyId, lobbySessionIdHost :: Ses
   deriving (Show, Eq, Ord)
 
 
+data SessionData = SessionData 
+  { sessionDataUserId :: UserId
+  , sessionDataToken :: Token
+  , sessioinDataWSChan :: Maybe (TVar WS.WSChan)
+  }
+
+defaultSessionData :: UserId -> Token -> SessionData 
+defaultSessionData sessionDataUserId sessionDataToken = SessionData 
+  { sessionDataUserId
+  , sessionDataToken
+  , sessioinDataWSChan = Nothing
+  }
+
 data LobbyError =
     LobbyErrorActiveGameIsGoingOn
   | LobbyErrorGameOrderIsInTheLobby
@@ -64,12 +82,12 @@ data SessionError =
     deriving(Show, Eq, Ord)
 
 class Monad m => SessionRepo m where
-  initNewGuestSession :: m (SessionId, UserId)
+  initNewGuestSession :: m (SessionId, UserId, Token)
   initKnownUserSession :: UserId -> m (Maybe (SessionId, UserId))
   restoreExistingSession :: SessionId -> UserId -> m (Maybe (SessionId, UserId))
   disconnectSession :: SessionId -> m ()
   initBotSession :: m (SessionId, UserId)
-  getUserIdBySessionId :: SessionId -> m (Maybe UserId)
+  getSessionDataBySessionId :: SessionId -> m (Maybe SessionData)
 
 
 class Monad m => WSRepo m where
@@ -88,7 +106,19 @@ class Monad m => GameRepo m where
   startGameWithBot :: SessionId -> GameType -> m (Either LobbyError GameRoomId)
 
 resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
-resolveSessionId = getUserIdBySessionId
+resolveSessionId sId = do 
+  maySD <- getSessionDataBySessionId sId 
+  pure (sessionDataUserId <$> maySD)
+
+checkSessionIdToken :: SessionRepo m => SessionId -> Token -> m (Maybe UserId)
+checkSessionIdToken sId token = do
+  maySD <- getSessionDataBySessionId sId 
+  let mayUid = do
+        sd <- maySD
+        if sessionDataToken sd == token then Just (sessionDataUserId sd) else Nothing
+  pure mayUid
+ 
+
 
 processOneWSMessageEcho :: (SessionRepo m, WSRepo m) => SessionId -> WS.WSMessage -> m (Maybe (WS.WSConnection, WS.WSMessage))
 processOneWSMessageEcho sId wsmsg = do

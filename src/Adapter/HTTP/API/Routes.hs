@@ -13,6 +13,7 @@ import Data.Aeson (decode, Value)
 import System.Random
 import Domain.Server (LobbyEntry(..))
 import Domain.Game (GameType(..))
+import qualified Data.Text.Encoding as T
 
 
 mkJsonIntPairString :: (String, Int) -> String
@@ -25,8 +26,11 @@ routes :: (MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) => ScottyT m ()
 routes = do
 
   get "/api/users" $ do
-    (D.SessionId sId, D.UserId uId) <- reqCurrentUserId
-    setSessionIdInCookie (D.SessionId sId)
+    (D.SessionId sId, D.UserId uId, mayToken) <- reqCurrentUserId
+    setByteStringValueInCookie "sId" (T.encodeUtf8 $ tshow sId)
+    case mayToken of
+      Just token -> setByteStringValueInCookie "sIdToken" (T.encodeUtf8 token) -- new token generated
+      Nothing -> pure ()
     let strJson = wrapJsonStrings $ map mkJsonIntPairString [("uId", uId), ("sId", sId)]
     json strJson
 
@@ -47,7 +51,7 @@ routes = do
 
 
   post "/api/addgametolobby" $ do
-    (sId, uId) <- reqCurrentUserId
+    (sId, _, _) <- reqCurrentUserId
     eitherLobbyId <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
     case eitherLobbyId of
       Left lobbyErr -> print lobbyErr
