@@ -44,9 +44,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.text())
             .then(data => {
                 if (data) { // If the response is not empty
-                    console.log(data);
-                    clearInterval(intervalId); // Stop polling
-                    window.location.href = data; // Redirect to the URL in the response
+                    // Remove surrounding quotes from the string
+                    const sanitizedData = data.replace(/^"(.*)"$/, '$1');
+                    if (sanitizedData) { // If the response is not empty
+                        // console.log(sanitizedData);
+                        clearInterval(intervalId); // Stop polling
+                        window.location.href = sanitizedData; // Redirect to the URL in the response
+                    }
                 }
             })
             .catch(error => {
@@ -71,10 +75,11 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify({ action: 'wait_for_opponent' })
     })
     .then(response => response.json())
-    .then(dataLobbyId => {
-        console.log('Game added to lobby:', dataLobbyId);
+    .then(jsonString => {
+        const data = JSON.parse(jsonString);
+        console.log('Game added to lobby:', data);
         fetchData(); // Refresh table data after adding game
-        checkLobbyStatus(dataLobbyId); // Start polling the lobby status
+        checkLobbyStatus(data.lobbyId); // Start polling the lobby status
     })
     .catch(error => console.error('Error adding game to lobby:', error));
 });

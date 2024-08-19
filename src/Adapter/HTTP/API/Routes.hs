@@ -16,8 +16,11 @@ import Domain.Game (GameType(..))
 import qualified Data.Text.Encoding as T
 
 
-mkJsonIntPairString :: (String, Int) -> String
-mkJsonIntPairString (name, val) = "\"" ++ name ++ "\":" ++ show val
+mkJsonIntPairStringInt :: (String, Int) -> String
+mkJsonIntPairStringInt (name, val) = "\"" ++ name ++ "\":\"" ++ show val ++ "\""
+
+mkJsonIntPairStringString :: (String, String) -> String
+mkJsonIntPairStringString (name, val) = "\"" ++ name ++ "\":\"" ++ val ++ "\""
 
 wrapJsonStrings :: [String] -> String
 wrapJsonStrings strs = "{" ++ intercalate "," strs ++ "}"
@@ -31,7 +34,7 @@ routes = do
     case mayToken of
       Just token -> setByteStringValueInCookie "sIdToken" (T.encodeUtf8 token) -- new token generated
       Nothing -> pure ()
-    let strJson = wrapJsonStrings $ map mkJsonIntPairString [("uId", uId), ("sId", sId)]
+    let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("uId", uId), ("sId", sId)]
     json strJson
 
   get "/api/lobbytable" $ do
@@ -44,10 +47,15 @@ routes = do
   
   get "/api/checklobbygamestatus/:lobbyid" $ do
     lobbyId :: Int <- captureParam "lobbyid"
+    liftIO $ putStrLn $ "checklobbygamestatus " ++ tshow lobbyId
     mayGameRoomId <- lift $ D.checkLobbyGameStatus (D.LobbyId lobbyId)
+    liftIO $ putStrLn $ "mayGameRoomId = " ++ tshow mayGameRoomId
     case mayGameRoomId of
       Nothing -> pure ()
       Just (D.GameRoomId roomId) -> json $ "/gameroom/" <> show roomId
+        -- do
+        -- let strJson = wrapJsonStrings $ map mkJsonIntPairStringString [("url",  "/gameroom/" <> show roomId)]
+        -- json strJson 
 
 
   post "/api/addgametolobby" $ do
@@ -55,7 +63,17 @@ routes = do
     eitherLobbyId <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
     case eitherLobbyId of
       Left lobbyErr -> print lobbyErr
-      Right (D.LobbyId lobbyId) -> json $ show lobbyId
+      -- Right (D.LobbyId lobbyId) -> json $ show lobbyId
+      Right (D.LobbyId lobbyId) -> do
+        let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("lobbyId", lobbyId)]
+        json strJson 
+
+
+  post "/api/joingame/:gameUrl" $ do
+    gameUrl :: String <- captureParam "gameUrl"
+    putStrLn "/api/joingame/:gameUrl"
+    putStrLn $ "gameUrl = " <> tshow  gameUrl
+
 
 
 lobbysToJsonString :: [D.LobbyEntry] -> BS.ByteString

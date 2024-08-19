@@ -12,6 +12,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Text.Blaze.Html.Renderer.Text as H
 import Adapter.HTTP.Common
+import qualified Domain.Server as D
 
 
 -- * Views
@@ -47,3 +48,4 @@ renderHtml = html . H.renderHtml
 --   case mUserId of
 --     Nothing -> redirect "/auth/login"
 --     Just userId -> pure userId
+

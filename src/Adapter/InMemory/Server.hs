@@ -379,14 +379,12 @@ getLobbyEntries = asks getter >>= (serverLobby <$>) . readTVarIO
 joinGame :: InMemory r m => D.SessionIdGuest -> D.LobbyId -> m (Maybe D.GameRoomId)
 joinGame sIdGuest lobbyId = do
   tvar <- asks getter
-  
   liftIO $ atomically $ do
     ss :: ServerState <- readTVar tvar
     case partition (\lb -> lobbyLobbyId lb == lobbyId) (serverLobby ss) of
-        ([lbEntry@LobbyEntry{lobbySessionIdHost, lobbyGameType}],newLobby) -> do 
+        ([lbEntry@LobbyEntry{lobbySessionIdHost, lobbyGameType}],restLobby) -> do 
             tvarGameStHost <- newTVar G.initialGameState
             tvarGameStGuest <- newTVar G.initialGameState
-
             let newGameRoom = D.GameRoom
                   { D.gameRoomGameType = lobbyGameType
                   , D.gameRoomHost = lobbySessionIdHost
@@ -398,11 +396,11 @@ joinGame sIdGuest lobbyId = do
                                       Map.insert sIdGuest tvarGameStGuest $ 
                                       serverGameStates ss
             writeTVar tvar ss{
-                    serverLobby = lbEntry{lobbyMaybeGameRoomId = Just gameRoomId} : newLobby, 
+                    serverLobby = lbEntry{lobbyMaybeGameRoomId = Just gameRoomId} : restLobby, 
                     serverActiveGames = newActiveGames, 
                     serverGameRoomIdCounter = gameRoomId,
                     serverGameStates = newServerGameStates}
-            pure (Just $ D.GameRoomId 0)
+            pure (Just gameRoomId)
         _ -> pure Nothing 
 
 
