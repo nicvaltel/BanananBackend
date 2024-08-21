@@ -23,27 +23,23 @@ newtype App a = App { unApp :: ReaderT AppState IO a  }
 
 
 instance SessionRepo App where
-  initNewGuestSession = Mem.initNewGuestSession
-  initKnownUserSession = Mem.initKnownUserSession
-  restoreExistingSession = Mem.restoreExistingSession
-  disconnectSession = Mem.disconnectSession
-  initBotSession = Mem.initBotSession
-  getSessionDataBySessionId = Mem.getSessionDataBySessionId
+  newSession = Mem.newSession
+  findUserBySessionId = Mem.findUserBySessionId
 
 instance WSRepo App where
-  initWSConn = Mem.initWSConn
-  pushInputWSMessage = Mem.pushInputWSMessage
-  processWSMessages = Mem.processWSMessages
-  sendOutWSMessage = Mem.sendOutWSMessage
-  sendOutAllWSMessages = Mem.sendOutAllWSMessages
+  -- initWSConn = Mem.initWSConn
   disconnectWSConn = Mem.disconnectWSConn
-  getWSChanBySessionId = Mem.getWSChanBySessionId
+  -- pushInputWSMessage = undefined -- Mem.pushInputWSMessage
+  -- processWSMessages = undefined -- Mem.processWSMessages
+  -- sendOutWSMessage = undefined -- Mem.sendOutWSMessage
+  -- sendOutAllWSMessages = undefined -- Mem.sendOutAllWSMessages
+  -- getWSChanBySessionId = undefined -- Mem.getWSChanBySessionId
 
 instance GameRepo App where
   addGameToLobby = Mem.addGameToLobby
   getLobbyEntries = Mem.getLobbyEntries
   joinGame = Mem.joinGame
-  startGameWithBot = Mem.startGameWithBot
+  -- startGameWithBot = undefined -- Mem.startGameWithBot
 
 
 runSession :: AppState -> App a -> IO a

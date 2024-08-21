@@ -47,17 +47,19 @@ setByteStringValueInCookie bsName bsValue = do
 
 getCurrentUserId :: (D.SessionRepo m) => ActionT m (Maybe (D.SessionId, D.UserId))
 getCurrentUserId = do
-  maySIdText <- getCookie "sId"
-  mayToken <- getCookie "sIdToken"
-  let maySessionIdToken :: Maybe (D.SessionId, D.Token) = do 
-        sIdText :: Text <- maySIdText
-        sId :: Int <- safeRead (unpack sIdText)
-        token <- mayToken
-        pure (D.SessionId sId, token)
-  case maySessionIdToken of
-    Nothing -> pure Nothing
-    Just (sessionId, token) -> do
-      mayUserId <- lift $ D.checkSessionIdToken sessionId token
-      case mayUserId of
-        Nothing -> pure Nothing
-        Just uId -> pure $ Just (sessionId, uId) 
+  pure Nothing 
+
+  -- maySIdText <- getCookie "sId"
+  -- mayToken <- getCookie "sIdToken"
+  -- let maySessionIdToken :: Maybe (D.SessionId, D.Token) = do 
+  --       sIdText :: Text <- maySIdText
+  --       sId :: Int <- safeRead (unpack sIdText)
+  --       token <- mayToken
+  --       pure (D.SessionId sId, token)
+  -- case maySessionIdToken of
+  --   Nothing -> pure Nothing
+  --   Just (sessionId, token) -> do
+  --     mayUserId <- lift $ D.checkSessionIdToken sessionId token
+  --     case mayUserId of
+  --       Nothing -> pure Nothing
+  --       Just uId -> pure $ Just (sessionId, uId) 

@@ -18,9 +18,10 @@ errorResponce val = object [ "error" .= val]
 
 reqCurrentUserId :: (D.SessionRepo m) => ActionT m (D.SessionId, D.UserId, Maybe D.Token)
 reqCurrentUserId = do
-  maySessionIdUserId <- getCurrentUserId
-  case maySessionIdUserId of
-    Just (sId, uId) -> pure (sId, uId, Nothing)
-    Nothing -> lift $ do
-      (sId, uId, token) <- D.initNewGuestSession
-      pure (sId, uId, Just token)
+  undefined
+  -- maySessionIdUserId <- getCurrentUserId
+  -- case maySessionIdUserId of
+  --   Just (sId, uId) -> pure (sId, uId, Nothing)
+  --   Nothing -> lift $ do
+  --     (sId, uId, token) <- D.initNewGuestSession
+  --     pure (sId, uId, Just token)

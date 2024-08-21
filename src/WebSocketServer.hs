@@ -17,6 +17,7 @@ module WebSocketServer
     receiveMessage,
     runEcho,
     sendTextData,
+    popAllWSOut,
   )
 where
 
@@ -32,27 +33,38 @@ type WSConnectionAct a = WSConnection -> IO a
 
 data WSChan = WSChan
   { wschanConn :: WSConnection,
-    wschanIn :: [WSMessage],
-    wschanOut :: [WSMessage]
+    wschanIn :: TQueue WSMessage,
+    wschanOut :: TQueue WSMessage
   }
 
-pushWSIn :: WSMessage -> WSChan -> WSChan
-pushWSIn msg chan@WSChan {wschanIn} = chan {wschanIn = msg : wschanIn}
+pushWSIn :: WSChan -> WSMessage -> STM ()
+pushWSIn wsChan msg = writeTQueue (wschanIn wsChan) msg
 
-popWSOut :: WSChan -> (WSChan, [WSMessage])
-popWSOut chan@WSChan {wschanOut} = (chan {wschanOut = []}, wschanOut)
+popWSOut :: WSChan -> STM WSMessage
+popWSOut wsChan = readTQueue (wschanOut wsChan)
 
-emptyWSChan :: WSConnection -> WSChan
-emptyWSChan conn =
-  WSChan
+popAllWSOut :: WSChan -> STM [WSMessage]
+popAllWSOut wsChan = go []
+  where
+    go acc = do
+      isEmpty <- isEmptyTQueue (wschanOut wsChan)
+      if isEmpty
+        then pure (reverse acc)
+        else do
+          msg <- readTQueue (wschanOut wsChan)
+          go (msg : acc)
+
+
+emptyWSChan :: WSConnection -> STM WSChan
+emptyWSChan conn = do
+  cin <- newTQueue
+  cout <- newTQueue
+  pure WSChan
     { wschanConn = conn,
-      wschanIn = mempty,
-      wschanOut = mempty
+      wschanIn = cin,
+      wschanOut = cout
     }
 
-instance Show WSChan where
-  show WSChan {wschanIn, wschanOut} =
-    "WsChanIn: " <> show wschanIn <> "; WsChanOut: " <> show wschanOut
 
 receiveMessage :: WSConnection -> IO WSMessage
 receiveMessage = WS.receiveData
@@ -88,41 +100,40 @@ webSocketServerAlternative wstimeout extractSessionIdFromRequestPath act initCon
 
 webSocketServer ::
   WSTimeout ->
-  (ByteString -> Maybe wsid) ->
-  (WSConnection -> wsid -> IO ()) ->
-  (WSConnection -> wsid -> IO (Either Text ())) ->
-  (WSConnection -> wsid -> IO ()) ->
+  (ByteString -> Maybe (sid, Maybe uid)) -> -- extractFromRequestPath
+  (WSConnection -> sid -> TVar WSChan -> IO ()) -> -- act
+  (WSConnection -> sid -> Maybe uid -> IO (Either Text (TVar WSChan))) -> -- initConnection 
+  (WSConnection -> sid -> IO ()) -> -- disconnect
   WS.ServerApp
-webSocketServer wstimeout extractSessionIdFromRequestPath act initConnection disconnect = \pendingConn -> do
-  
+webSocketServer wstimeout extractFromRequestPath act initConnection disconnect = \pendingConn -> do
   let req = WS.pendingRequest pendingConn
   let path = WS.requestPath req
   -- let headers = WS.requestHeaders req
   -- putStrLn $ "\nheaders = " ++ tshow headers
   -- putStrLn $ "\npath = " ++ tshow path
   conn <- WS.acceptRequest pendingConn
-  case extractSessionIdFromRequestPath path of
+  case extractFromRequestPath path of
     Nothing -> sendTextData conn "Websocket connection rejected: no SessionId provided" -- close connection
-    Just wsId -> do
-        eitherWsId <- initConnection conn wsId
-        case eitherWsId of
+    Just (sId, mayUid) -> do
+        eitherTvarWSChan <- initConnection conn sId mayUid
+        case eitherTvarWSChan of
           Left errMsg -> sendTextData conn errMsg -- close connection
-          Right _ -> do
+          Right tvarWSChan -> do
             WS.withPingThread conn wstimeout (pure ()) $ do -- default timeout = 30ms
               finally
-                (act conn wsId)
-                (disconnect conn wsId)
+                (act conn sId tvarWSChan)
+                (disconnect conn sId)
 
 startWebSocketServer ::
   Port ->
   WSTimeout ->
-  (ByteString -> Maybe wsid) -> -- extractSessionIdFromRequestPath
-  (WSConnection -> wsid -> IO ()) -> -- act
-  (WSConnection -> wsid -> IO (Either Text ())) -> -- initConnection
-  (WSConnection -> wsid -> IO ()) -> -- disconnect
+  (ByteString -> Maybe (sid, Maybe uid)) -> -- extractSessionIdFromRequestPath
+  (WSConnection -> sid -> TVar WSChan -> IO ()) -> -- act
+  (WSConnection -> sid -> Maybe uid -> IO (Either Text (TVar WSChan))) -> -- initConnection
+  (WSConnection -> sid -> IO ()) -> -- disconnect
   IO ()
-startWebSocketServer port wstimeout extractSessionIdFromRequestPath act initConnection disconnect = do
-  WS.runServer "0.0.0.0" port (webSocketServer wstimeout extractSessionIdFromRequestPath act initConnection disconnect)
+startWebSocketServer port wstimeout extractFromRequestPath act initConnection disconnect = do
+  WS.runServer "0.0.0.0" port (webSocketServer wstimeout extractFromRequestPath act initConnection disconnect)
 
 sendTextData :: WSConnection -> Text -> IO ()
 sendTextData = WS.sendTextData

@@ -28,19 +28,20 @@ routes = do
     file "static/auth.html"
 
   get "/gameroom/:lobbyid" $ do
-    lbId :: Int <- captureParam "lobbyid"
-    let lobbyId = D.LobbyId lbId
-    liftIO $ do
-      print "/gameroom lobbyId = "
-      print lobbyId
-    lobbyIsActive <- lift $ D.checkGameInLobby lobbyId
-    if lobbyIsActive
-      then do
-        maySessionIdUserId <- getCurrentUserId
-        case maySessionIdUserId of
-          Nothing -> redirect "/auth"
-          Just (sId, uId) -> do
-            _ <- lift $ D.joinGame sId lobbyId
-            file "static/game.html"
-      else
-        redirect "/lobby"
+    undefined
+    -- lbId :: Int <- captureParam "lobbyid"
+    -- let lobbyId = D.LobbyId lbId
+    -- liftIO $ do
+    --   print "/gameroom lobbyId = "
+    --   print lobbyId
+    -- lobbyIsActive <- lift $ D.checkGameInLobby lobbyId
+    -- if lobbyIsActive
+    --   then do
+    --     maySessionIdUserId <- getCurrentUserId
+    --     case maySessionIdUserId of
+    --       Nothing -> redirect "/auth"
+    --       Just (sId, uId) -> do
+    --         _ <- lift $ D.joinGame sId lobbyId
+    --         file "static/game.html"
+    --   else
+    --     redirect "/lobby"

@@ -13,31 +13,35 @@ module Domain.Server
   , LobbyError(..)
   , SessionError(..)
   , LobbyEntry(..)
-  , SessionData(..)
-  , defaultSessionData
+  , generateNewSessionId
   , resolveSessionId
-  , processOneWSMessageEcho
+  -- , processOneWSMessageEcho
   , checkGameInLobby
   , checkLobbyGameStatus
   , Token
-  , checkSessionIdToken
+  -- , initGuestSession
+  -- , initRegUserSession
+  , lengthOfSessionIdConst
   ) where
 
 
-import Reexport
 import ClassyPrelude
 import Domain.Game
 import qualified WebSocketServer as WS
 import WebSocketServer(WSMessage, WSChan(..), WSConnection)
 import qualified Domain.GameBot.GameModel as G
 import qualified Data.Text as Text
+import Text.StringRandom (stringRandomIO)
 
 type Token = Text
-
 type SessionIdHost = SessionId
 type SessionIdGuest = SessionId
-newtype SessionId = SessionId {unSessionId :: Int}
-  deriving (Show, Eq, Ord, Num)
+
+newtype SessionId = SessionId {unSessionId :: Text}
+  deriving (Show, Eq, Ord)
+
+lengthOfSessionIdConst :: Int
+lengthOfSessionIdConst = 32
 
 newtype UserId = UserId {unUserId :: Int}
   deriving (Show, Eq, Ord, Num)
@@ -53,23 +57,17 @@ data GameRoom = GameRoom
   { gameRoomGameType :: GameType
   , gameRoomHost :: SessionId
   , gameRoomGuest :: SessionId
-  } deriving (Show, Eq, Ord)
+  , gameRoomHostChan :: WSChan  
+  , gameRoomGuestChan :: WSChan 
+  , gameRoomGameState :: TVar G.GameState
+  } 
 
-data LobbyEntry = LobbyEntry {lobbyLobbyId :: LobbyId, lobbySessionIdHost :: SessionId, lobbyGameType :: GameType, lobbyMaybeGameRoomId :: Maybe GameRoomId}
-  deriving (Show, Eq, Ord)
-
-
-data SessionData = SessionData 
-  { sessionDataUserId :: UserId
-  , sessionDataToken :: Token
-  , sessioinDataWSChan :: Maybe (TVar WS.WSChan)
-  }
-
-defaultSessionData :: UserId -> Token -> SessionData 
-defaultSessionData sessionDataUserId sessionDataToken = SessionData 
-  { sessionDataUserId
-  , sessionDataToken
-  , sessioinDataWSChan = Nothing
+data LobbyEntry = LobbyEntry 
+  { lobbyLobbyId :: LobbyId
+  , lobbySessionIdHost :: SessionId
+  , lobbyWSConnectionHost :: WSConnection
+  , lobbyGameType :: GameType
+  , lobbyMaybeGameRoomId :: Maybe GameRoomId
   }
 
 data LobbyError =
@@ -78,63 +76,65 @@ data LobbyError =
     deriving (Show, Eq, Ord)
 
 data SessionError =
-  SessionErrorSessionIdIsNotActive
+    SessionErrorSessionIdIsNotActive
+  | SessionErrorGameRoomIdIsNotActive
+  | SessionErrorWSConnectionIsAlreadyActive
     deriving(Show, Eq, Ord)
 
 class Monad m => SessionRepo m where
-  initNewGuestSession :: m (SessionId, UserId, Token)
-  initKnownUserSession :: UserId -> m (Maybe (SessionId, UserId))
-  restoreExistingSession :: SessionId -> UserId -> m (Maybe (SessionId, UserId))
-  disconnectSession :: SessionId -> m ()
-  initBotSession :: m (SessionId, UserId)
-  getSessionDataBySessionId :: SessionId -> m (Maybe SessionData)
-
+  newSession :: Maybe UserId -> SessionId -> WSConnection -> m (Either SessionError (TVar WSChan))
+  findUserBySessionId :: SessionId -> m (Maybe UserId)
 
 class Monad m => WSRepo m where
-  initWSConn :: WSConnection -> SessionId -> m (Either SessionError ())
+  -- initWSConn :: SessionId -> m (Either SessionError (TVar WSChan))
   disconnectWSConn :: WSConnection -> SessionId -> m ()
-  pushInputWSMessage :: SessionId -> WSMessage -> m ()
-  processWSMessages :: (SessionId -> WSMessage -> m (Maybe (WSConnection, WSMessage))) -> SessionId -> m () -- TODO move partially it ot game logic
-  sendOutWSMessage :: SessionId -> m ()
-  sendOutAllWSMessages :: m ()
-  getWSChanBySessionId :: SessionId -> m (Maybe WSChan)
+  -- pushInputWSMessage :: SessionId -> GameRoomId -> WSMessage -> m ()
+  -- processWSMessages :: (SessionId -> GameRoomId -> WSMessage -> m (Maybe (WSConnection, WSMessage))) -> SessionId -> GameRoomId -> m () -- TODO move partially it ot game logic
+  -- sendOutWSMessage :: SessionId -> GameRoomId -> m ()
+  -- sendOutAllWSMessages :: m ()
+  -- getWSChanBySessionId :: SessionId -> m (Maybe WSChan)
 
 class Monad m => GameRepo m where
-  addGameToLobby :: SessionId -> GameType -> m (Either LobbyError LobbyId)
+  addGameToLobby :: SessionId -> WSConnection -> GameType -> m (Either LobbyError LobbyId)
   getLobbyEntries :: m [LobbyEntry]
-  joinGame :: SessionIdGuest -> LobbyId -> m (Maybe GameRoomId)
-  startGameWithBot :: SessionId -> GameType -> m (Either LobbyError GameRoomId)
+  joinGame :: SessionIdGuest -> WSConnection -> LobbyId -> m (Maybe GameRoomId)
+  -- startGameWithBot :: SessionId -> GameType -> m (Either LobbyError GameRoomId)
+
+generateNewSessionId :: MonadIO m => m SessionId
+generateNewSessionId = do
+  let randLen = tshow lengthOfSessionIdConst
+  sId <- liftIO $ stringRandomIO ("[A-Za-z0-9]{" <> randLen <> "}")
+  pure (SessionId sId)
+
+-- initGuestSession :: SessionRepo m => m SessionId
+-- initGuestSession = newSession Nothing
+
+-- initRegUserSession :: SessionRepo m => UserId -> m SessionId
+-- initRegUserSession = newSession . Just
 
 resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
-resolveSessionId sId = do 
-  maySD <- getSessionDataBySessionId sId 
-  pure (sessionDataUserId <$> maySD)
-
-checkSessionIdToken :: SessionRepo m => SessionId -> Token -> m (Maybe UserId)
-checkSessionIdToken sId token = do
-  maySD <- getSessionDataBySessionId sId 
-  let mayUid = do
-        sd <- maySD
-        if sessionDataToken sd == token then Just (sessionDataUserId sd) else Nothing
-  pure mayUid
- 
+resolveSessionId = findUserBySessionId
 
 
-processOneWSMessageEcho :: (SessionRepo m, WSRepo m) => SessionId -> WS.WSMessage -> m (Maybe (WS.WSConnection, WS.WSMessage))
-processOneWSMessageEcho sId wsmsg = do
-  case Text.splitAt 5 wsmsg of
-    ("lobb:", msg) -> pure Nothing
-    ("chat:", msg) -> pure Nothing
-    ("echo:", msg) -> do
-      mayChan <- getWSChanBySessionId sId
-      case mayChan of
-        Just WSChan{wschanConn} -> pure $ Just (wschanConn, msg)
-        Nothing -> pure Nothing
-    _ -> do -- no prefix for active Game ws messages
-      mayChan <- getWSChanBySessionId sId
-      case mayChan of
-        Just WSChan{wschanConn} -> pure $ Just (wschanConn, wsmsg)
-        Nothing -> pure Nothing
+
+--------------------------------------------------
+
+
+-- processOneWSMessageEcho :: (SessionRepo m, WSRepo m) => SessionId -> GameRoomId -> WS.WSMessage -> m (Maybe (WS.WSConnection, WS.WSMessage))
+-- processOneWSMessageEcho sId gId wsmsg = do
+--   case Text.splitAt 5 wsmsg of
+--     ("lobb:", msg) -> pure Nothing
+--     ("chat:", msg) -> pure Nothing
+--     ("echo:", msg) -> do
+--       mayChan <- getWSChanBySessionId sId
+--       case mayChan of
+--         Just WSChan{wschanConn} -> pure $ Just (wschanConn, msg)
+--         Nothing -> pure Nothing
+--     _ -> do -- no prefix for active Game ws messages
+--       mayChan <- getWSChanBySessionId sId
+--       case mayChan of
+--         Just WSChan{wschanConn} -> pure $ Just (wschanConn, wsmsg)
+--         Nothing -> pure Nothing
         
 
 checkGameInLobby :: GameRepo m => LobbyId -> m Bool

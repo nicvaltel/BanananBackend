@@ -74,6 +74,7 @@ library
     , data-has
     , extra
     , http-types
+    , lens
     , mtl
     , random
     , record-hasfield
@@ -115,6 +116,7 @@ executable BanananBack-exe
     , data-has
     , extra
     , http-types
+    , lens
     , mtl
     , random
     , record-hasfield
@@ -157,6 +159,7 @@ test-suite BanananBack-test
     , data-has
     , extra
     , http-types
+    , lens
     , mtl
     , random
     , record-hasfield

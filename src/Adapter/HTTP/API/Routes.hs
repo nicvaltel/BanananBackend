@@ -29,13 +29,14 @@ routes :: (MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) => ScottyT m ()
 routes = do
 
   get "/api/users" $ do
-    (D.SessionId sId, D.UserId uId, mayToken) <- reqCurrentUserId
-    setByteStringValueInCookie "sId" (T.encodeUtf8 $ tshow sId)
-    case mayToken of
-      Just token -> setByteStringValueInCookie "sIdToken" (T.encodeUtf8 token) -- new token generated
-      Nothing -> pure ()
-    let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("uId", uId), ("sId", sId)]
-    json strJson
+    undefined
+    -- (D.SessionId sId, D.UserId uId, mayToken) <- reqCurrentUserId
+    -- setByteStringValueInCookie "sId" (T.encodeUtf8 $ tshow sId)
+    -- case mayToken of
+    --   Just token -> setByteStringValueInCookie "sIdToken" (T.encodeUtf8 token) -- new token generated
+    --   Nothing -> pure ()
+    -- let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("uId", uId), ("sId", sId)]
+    -- json strJson
 
   get "/api/lobbytable" $ do
     lobbys <- lift D.getLobbyEntries
@@ -59,14 +60,15 @@ routes = do
 
 
   post "/api/addgametolobby" $ do
-    (sId, _, _) <- reqCurrentUserId
-    eitherLobbyId <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
-    case eitherLobbyId of
-      Left lobbyErr -> print lobbyErr
-      -- Right (D.LobbyId lobbyId) -> json $ show lobbyId
-      Right (D.LobbyId lobbyId) -> do
-        let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("lobbyId", lobbyId)]
-        json strJson 
+    undefined
+    -- (sId, _, _) <- reqCurrentUserId
+    -- eitherLobbyId <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
+    -- case eitherLobbyId of
+    --   Left lobbyErr -> print lobbyErr
+    --   -- Right (D.LobbyId lobbyId) -> json $ show lobbyId
+    --   Right (D.LobbyId lobbyId) -> do
+    --     let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("lobbyId", lobbyId)]
+    --     json strJson 
 
 
   post "/api/joingame/:gameUrl" $ do
