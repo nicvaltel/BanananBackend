@@ -22,7 +22,7 @@ type InMemory r m = (Has (TVar ServerState) r, MonadReader r m, MonadIO m)
 data SessionData = SessionData
   { _sdMayUserId :: Maybe D.UserId -- Nothing for guest
   , _sdWSConn :: WSConnection
-  , _sdWSChan :: TVar WS.WSChan
+  , _sdWSChan :: WS.WSChan
   }
 
 data ServerState = ServerState 
@@ -53,21 +53,20 @@ initialServerState = ServerState {
 }
 
 
-newSession :: InMemory r m => Maybe D.UserId -> D.SessionId -> WSConnection -> m (Either D.SessionError (TVar WS.WSChan))
+newSession :: InMemory r m => Maybe D.UserId -> D.SessionId -> WSConnection -> m (Either D.SessionError WS.WSChan)
 newSession mayUid sId conn = do
   chan <- atomically $ WS.emptyWSChan conn
-  chanTVar <- newTVarIO chan
   let sessionData = SessionData
         { _sdMayUserId = mayUid
         , _sdWSConn = conn
-        , _sdWSChan = chanTVar
+        , _sdWSChan = chan
         }
   tvar :: TVar ServerState <- asks getter
   liftIO $ atomically $ do
     state <- readTVar tvar
     writeTVar tvar $
       state & serverSessions %~ Map.insert sId sessionData
-  pure $ Right chanTVar
+  pure $ Right chan
 
 
 findUserBySessionId :: InMemory r m => D.SessionId -> m (Maybe D.UserId)

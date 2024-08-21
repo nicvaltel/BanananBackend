@@ -82,7 +82,7 @@ data SessionError =
     deriving(Show, Eq, Ord)
 
 class Monad m => SessionRepo m where
-  newSession :: Maybe UserId -> SessionId -> WSConnection -> m (Either SessionError (TVar WSChan))
+  newSession :: Maybe UserId -> SessionId -> WSConnection -> m (Either SessionError WSChan)
   findUserBySessionId :: SessionId -> m (Maybe UserId)
 
 class Monad m => WSRepo m where

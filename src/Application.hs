@@ -18,13 +18,11 @@ import qualified WebSocketServer as WS
 
 type WSThreadDelayMs = Int -- in milliseconds
 
-wsListener :: WSConnection -> TVar WSChan -> IO ()
-wsListener conn tvarWSChan = do
+wsListener :: WSConnection -> WSChan -> IO ()
+wsListener conn wsChan = do
     forever $ do
       msg <- liftIO $ receiveMessage conn
-      atomically $ do
-        wsChan <- readTVar tvarWSChan
-        WS.pushWSIn wsChan msg
+      atomically $ WS.pushWSIn wsChan msg
       -- D.pushInputWSMessage sId gId msg
       -- D.processWSMessages D.processOneWSMessageEcho sId gId
 
@@ -39,7 +37,7 @@ runApp :: Port -> WSTimeout -> IO ()
 runApp port wstimeout = do
   ss <- newTVarIO Mem.initialServerState
   let r = ss
-  let act = \conn sId tvarWSChan -> wsListener conn tvarWSChan
+  let act = \conn sId wsChan -> wsListener conn wsChan
   let initConnection = \conn sId mayUid -> runSession r (mapLeft tshow <$> D.newSession mayUid sId conn)
   let disconnect = \conn sId -> runSession r (D.disconnectWSConn conn sId)
   _ <- forkIO $ WS.startWebSocketServer port wstimeout extractFromRequestPath act initConnection disconnect

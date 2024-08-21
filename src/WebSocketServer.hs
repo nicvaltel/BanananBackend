@@ -101,8 +101,8 @@ webSocketServerAlternative wstimeout extractSessionIdFromRequestPath act initCon
 webSocketServer ::
   WSTimeout ->
   (ByteString -> Maybe (sid, Maybe uid)) -> -- extractFromRequestPath
-  (WSConnection -> sid -> TVar WSChan -> IO ()) -> -- act
-  (WSConnection -> sid -> Maybe uid -> IO (Either Text (TVar WSChan))) -> -- initConnection 
+  (WSConnection -> sid -> WSChan -> IO ()) -> -- act
+  (WSConnection -> sid -> Maybe uid -> IO (Either Text WSChan)) -> -- initConnection 
   (WSConnection -> sid -> IO ()) -> -- disconnect
   WS.ServerApp
 webSocketServer wstimeout extractFromRequestPath act initConnection disconnect = \pendingConn -> do
@@ -115,21 +115,21 @@ webSocketServer wstimeout extractFromRequestPath act initConnection disconnect =
   case extractFromRequestPath path of
     Nothing -> sendTextData conn "Websocket connection rejected: no SessionId provided" -- close connection
     Just (sId, mayUid) -> do
-        eitherTvarWSChan <- initConnection conn sId mayUid
-        case eitherTvarWSChan of
+        eitherWSChan <- initConnection conn sId mayUid
+        case eitherWSChan of
           Left errMsg -> sendTextData conn errMsg -- close connection
-          Right tvarWSChan -> do
+          Right wsChan -> do
             WS.withPingThread conn wstimeout (pure ()) $ do -- default timeout = 30ms
               finally
-                (act conn sId tvarWSChan)
+                (act conn sId wsChan)
                 (disconnect conn sId)
 
 startWebSocketServer ::
   Port ->
   WSTimeout ->
   (ByteString -> Maybe (sid, Maybe uid)) -> -- extractSessionIdFromRequestPath
-  (WSConnection -> sid -> TVar WSChan -> IO ()) -> -- act
-  (WSConnection -> sid -> Maybe uid -> IO (Either Text (TVar WSChan))) -> -- initConnection
+  (WSConnection -> sid -> WSChan -> IO ()) -> -- act
+  (WSConnection -> sid -> Maybe uid -> IO (Either Text WSChan)) -> -- initConnection
   (WSConnection -> sid -> IO ()) -> -- disconnect
   IO ()
 startWebSocketServer port wstimeout extractFromRequestPath act initConnection disconnect = do
