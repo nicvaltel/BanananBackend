@@ -21,7 +21,8 @@ type WSThreadDelayMs = Int -- in milliseconds
 wsListener :: WSConnection -> WSChan -> IO ()
 wsListener conn wsChan = do
     forever $ do
-      msg <- liftIO $ receiveMessage conn
+      msg <- receiveMessage conn
+      print msg
       atomically $ WS.pushWSIn wsChan msg
       -- D.pushInputWSMessage sId gId msg
       -- D.processWSMessages D.processOneWSMessageEcho sId gId
@@ -55,6 +56,8 @@ extractFromRequestPath bstr = do
   let lenSid = length ("/session?sessionId=" :: String)
   let lenUid = length ("&userId=" :: String)
   case splitPlaces [lenSid, D.lengthOfSessionIdConst, lenUid, 10000] str of
+    ["/session?sessionId=", sId] -> Just (D.SessionId $ pack sId, Nothing ) 
+
     ["/session?sessionId=", sId, "&userId="] -> Just (D.SessionId $ pack sId, Nothing ) 
 
     ["/session?sessionId=", sId, "&userId=", uIdString] ->
@@ -63,13 +66,3 @@ extractFromRequestPath bstr = do
         _ -> Nothing
 
     _ -> Nothing
-
-
--- -- TODO This module is not a place for this function, but I don't know where to place it...?
--- extractFromRequestPath :: ByteString -> Maybe D.SessionId
--- extractFromRequestPath bstr = do
---   let str  = (unpack . decodeUtf8) bstr :: String
---   let lenSid = length ("/session?sessionId=" :: String)
---   case splitAt lenSid str of
---     ("/session?sessionId=", numStr) -> D.SessionId <$> safeRead numStr
---     _ -> Nothing

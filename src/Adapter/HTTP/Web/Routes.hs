@@ -18,7 +18,6 @@ routes :: (MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) => ScottyT m ()
 routes = do
   -- home
   get "/" $
-    -- trace "HERE1: Adapter.HTTP.Web.Auth.routes:get '/'"
     redirect "/auth"
 
   get "/lobby" $

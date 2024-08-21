@@ -20,3 +20,8 @@ splitPlaces ns inputxs = reverse $ go ns ([], inputxs)
         (ys, []) -> ys:out 
         (ys, rest) -> go restN (ys:out, rest)
 
+logInfo :: MonadIO m => Text -> m ()
+logInfo txt = putStr "INFO: " >> putStrLn txt
+
+logWarning :: MonadIO m => Text -> m ()
+logWarning txt = putStr "WARNING: " >> putStrLn txt 

@@ -9,11 +9,12 @@ import Adapter.HTTP.API.Common
 import Adapter.HTTP.Common
 import Text.Printf (printf)
 import qualified Data.ByteString.Lazy.Char8 as BS
-import Data.Aeson (decode, Value)
 import System.Random
 import Domain.Server (LobbyEntry(..))
 import Domain.Game (GameType(..))
 import qualified Data.Text.Encoding as T
+import Utils.Utils (logWarning)
+import Data.Aeson (decode, object, (.=), Value)
 
 
 mkJsonIntPairStringInt :: (String, Int) -> String
@@ -28,15 +29,19 @@ wrapJsonStrings strs = "{" ++ intercalate "," strs ++ "}"
 routes :: (MonadUnliftIO m, D.SessionRepo m, D.GameRepo m) => ScottyT m ()
 routes = do
 
-  get "/api/users" $ do
-    undefined
-    -- (D.SessionId sId, D.UserId uId, mayToken) <- reqCurrentUserId
-    -- setByteStringValueInCookie "sId" (T.encodeUtf8 $ tshow sId)
-    -- case mayToken of
-    --   Just token -> setByteStringValueInCookie "sIdToken" (T.encodeUtf8 token) -- new token generated
-    --   Nothing -> pure ()
-    -- let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("uId", uId), ("sId", sId)]
-    -- json strJson
+  get "/api/getsession" $ do
+    (D.SessionId sId, mayUid) <- reqCurrentUserId
+    setByteStringValueInCookie "sId" (T.encodeUtf8 $ tshow sId)
+    case mayUid of
+      Just (D.UserId uId) -> do
+        setByteStringValueInCookie "uId" (T.encodeUtf8 $ tshow uId) -- new token generated
+        let obj = object ["uId" .= uId, "sId" .= sId] :: Value
+        json obj
+      Nothing -> do
+        let obj = object ["sId" .= sId] :: Value
+        json obj
+        pure ()
+        
 
   get "/api/lobbytable" $ do
     lobbys <- lift D.getLobbyEntries

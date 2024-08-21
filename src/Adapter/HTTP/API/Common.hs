@@ -16,12 +16,11 @@ errorResponce val = object [ "error" .= val]
 
 -- * Session
 
-reqCurrentUserId :: (D.SessionRepo m) => ActionT m (D.SessionId, D.UserId, Maybe D.Token)
+reqCurrentUserId :: (MonadIO m, D.SessionRepo m) => ActionT m (D.SessionId, Maybe D.UserId)
 reqCurrentUserId = do
-  undefined
-  -- maySessionIdUserId <- getCurrentUserId
-  -- case maySessionIdUserId of
-  --   Just (sId, uId) -> pure (sId, uId, Nothing)
-  --   Nothing -> lift $ do
-  --     (sId, uId, token) <- D.initNewGuestSession
-  --     pure (sId, uId, Just token)
+  maySessionIdUserId <- getCurrentUserId
+  case maySessionIdUserId of
+    Just result -> pure result
+    Nothing -> do
+      sId <- D.generateNewSessionId
+      pure (sId, Nothing)
