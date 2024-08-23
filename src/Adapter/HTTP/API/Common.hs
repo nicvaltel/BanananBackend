@@ -20,7 +20,13 @@ reqCurrentUserId :: (MonadIO m, D.SessionRepo m) => ActionT m (D.SessionId, Mayb
 reqCurrentUserId = do
   maySessionIdUserId <- getCurrentUserId
   case maySessionIdUserId of
-    Just result -> pure result
+    Just result@(sId,_) -> do
+      maySD <- lift $ D.resolveSessionData sId
+      case maySD of
+        Nothing -> do
+          sIdNew <- D.generateNewSessionId
+          pure (sIdNew, Nothing)
+        Just _ -> pure result
     Nothing -> do
       sId <- D.generateNewSessionId
       pure (sId, Nothing)

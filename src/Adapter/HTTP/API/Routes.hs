@@ -13,8 +13,8 @@ import System.Random
 import Domain.Server (LobbyEntry(..))
 import Domain.Game (GameType(..))
 import qualified Data.Text.Encoding as T
-import Utils.Utils (logWarning)
-import Data.Aeson (decode, object, (.=), Value)
+import Utils.Utils (logWarning, safeRead)
+import Data.Aeson (decode, object, (.=), Value, Object)
 
 
 mkJsonIntPairStringInt :: (String, Int) -> String
@@ -40,65 +40,67 @@ routes = do
       Nothing -> do
         let obj = object ["sId" .= sId] :: Value
         json obj
-        pure ()
         
 
   get "/api/lobbytable" $ do
     lobbys <- lift D.getLobbyEntries
-    let lobbyJsonByteStr = lobbysToJsonString lobbys
-    let newsJsonObject = case decode lobbyJsonByteStr of
-                           Just obj -> obj
-                           Nothing -> error "Failed to decode JSON mockLobbyJsonByteStr"
-    json (newsJsonObject :: Value)
+    let mkLobbyObj LobbyEntry{lobbyLobbyId, lobbySessionIdHost, lobbyGameType = GameType {gameTypeRules, gameTypeRated}} = 
+          object [ "playerName" .= show lobbySessionIdHost
+                 , "rating" .= (100 :: Int)
+                 , "gameType" .= gameTypeRules
+                 , "gameMode" .= (if gameTypeRated then "Rated" else "Casual" :: String)
+                 , "link" .= ("/gameroom/" ++ show (D.unLobbyId lobbyLobbyId) :: String)]
+    json (map mkLobbyObj lobbys)
+
   
-  get "/api/checklobbygamestatus/:lobbyid" $ do
-    lobbyId :: Int <- captureParam "lobbyid"
-    liftIO $ putStrLn $ "checklobbygamestatus " ++ tshow lobbyId
-    mayGameRoomId <- lift $ D.checkLobbyGameStatus (D.LobbyId lobbyId)
+  get "/api/checklobbygamestatus/:sid" $ do
+    sId :: Text <- captureParam "sid"
+    liftIO $ putStrLn $ "checklobbygamestatus " ++ sId
+    mayGameRoomId <- lift $ D.checkSessionGameStatus (D.SessionId sId)
     liftIO $ putStrLn $ "mayGameRoomId = " ++ tshow mayGameRoomId
     case mayGameRoomId of
       Nothing -> pure ()
-      Just (D.GameRoomId roomId) -> json $ "/gameroom/" <> show roomId
-        -- do
-        -- let strJson = wrapJsonStrings $ map mkJsonIntPairStringString [("url",  "/gameroom/" <> show roomId)]
-        -- json strJson 
+      Just (D.GameRoomId roomId) -> json $ "/gameroom/" <> show roomId -- sending text, not JSON
 
 
   post "/api/addgametolobby" $ do
-    undefined
-    -- (sId, _, _) <- reqCurrentUserId
-    -- eitherLobbyId <- lift $ D.addGameToLobby sId (GameType {gameTypeRules = 10, gameTypeRated = True})
-    -- case eitherLobbyId of
-    --   Left lobbyErr -> print lobbyErr
-    --   -- Right (D.LobbyId lobbyId) -> json $ show lobbyId
-    --   Right (D.LobbyId lobbyId) -> do
-    --     let strJson = wrapJsonStrings $ map mkJsonIntPairStringInt [("lobbyId", lobbyId)]
-    --     json strJson 
+    (sId, _) <- reqCurrentUserId
+    maySD <- lift $ D.resolveSessionData sId
+    case maySD of
+      Nothing -> do
+        logWarning $ "Adapter.HTTP.API.Routes routes /api/addgametolobby: " <> "sessionData is Nothing, need to relogin"
+        pure () -- TODO need to relogin
+      Just sd -> do
+        eitherLobbyId <- lift $ D.addGameToLobby sId (D._sdWSConn sd) (GameType {gameTypeRules = 10, gameTypeRated = True}) -- TODO set correct rules and rated
+        case eitherLobbyId of
+          Left lobbyErr -> do
+            logWarning $ "Adapter.HTTP.API.Routes routes /api/addgametolobby: " <> tshow lobbyErr
+            pure ()
+          Right (D.LobbyId lobbyId) -> do
+            let obj = object ["lobbyId" .= lobbyId] :: Value
+            json obj
 
-
-  post "/api/joingame/:gameUrl" $ do
-    gameUrl :: String <- captureParam "gameUrl"
-    putStrLn "/api/joingame/:gameUrl"
-    putStrLn $ "gameUrl = " <> tshow  gameUrl
-
-
-
-lobbysToJsonString :: [D.LobbyEntry] -> BS.ByteString
-lobbysToJsonString lobbys = BS.pack $ "[" ++ intercalate "," (map lobbyToStr lobbys) ++ "]"
-  where
-    lobbyToStr LobbyEntry{lobbyLobbyId, lobbySessionIdHost, lobbyGameType = GameType {gameTypeRules, gameTypeRated}}=
-      printf "{\"playerName\": \"%s\", \"rating\": \"%d\", \"gameType\": \"%d\", \"gameMode\": \"%s\", \"link\": \"%s\"}" 
-                ("Player_" ++ show lobbySessionIdHost) 
-                (100 :: Int) 
-                gameTypeRules 
-                (if gameTypeRated then "Rated" else "Casual" :: String)
-                ("/gameroom/" ++ show (D.unLobbyId lobbyLobbyId) :: String)
-
-mkRandomLobbyTableMock :: IO String
-mkRandomLobbyTableMock = do
-  player :: String <- (\(n :: Int) -> if n <= 1000 then "Anonymous" else "Player_" ++ show (n - 1000)) <$> randomRIO (1,1500)
-  rating :: Int <- randomRIO (1, 100)
-  gameType :: Int <- randomRIO (1,10)
-  mode :: String <- (\(n :: Int) -> if n <= 7 then "Casual" else "Rated") <$> randomRIO(1,10)
-  let str = printf "{\"playerName\": \"%s\", \"rating\": \"%d\", \"gameType\": \"%d\", \"gameMode\": \"%s\"}" player rating gameType mode
-  pure str
+  post "/api/joingame" $ do
+    -- joinGameReq :: Text <- jsonData
+    joinGameReq <- body
+    let mayLobbyId = safeRead $ (unpack . decodeUtf8) joinGameReq :: Maybe Int
+    case mayLobbyId of
+      Nothing -> pure ()
+      Just lbId -> do
+        let lobbyId = D.LobbyId lbId
+        lobbyIsActive <- lift $ D.checkGameInLobby lobbyId
+        if not lobbyIsActive
+          then pure () -- then redirect "/lobby"
+          else do
+            maySidUid <- getCurrentUserId
+            case maySidUid of
+              Nothing -> pure () -- redirect "/auth"
+              Just (sId,_) -> do
+                maySD <- lift $ D.resolveSessionData sId
+                case maySD of
+                  Nothing -> pure () -- redirect "/auth"
+                  Just sd
+                    | isJust (D._sdMayActiveGame sd) -> pure () -- redirect to lobby
+                    | otherwise -> do
+                      _ <- lift $ D.joinGame sId (D._sdWSConn sd) lobbyId
+                      pure ()

@@ -59,16 +59,16 @@ function populateTable(data) {
   });
 }
 
-function checkLobbyStatus(lobbyId) {
+function checkLobbyStatus(sId) {
   const intervalId = setInterval(function() {
-      fetch(`/api/checklobbygamestatus/${lobbyId}`)
+      fetch(`/api/checklobbygamestatus/${sId}`)
           .then(response => response.text())
           .then(data => {
               if (data) { // If the response is not empty
                   // Remove surrounding quotes from the string
                   const sanitizedData = data.replace(/^"(.*)"$/, '$1');
                   if (sanitizedData) { // If the response is not empty
-                      // console.log(sanitizedData);
+                      console.log(sanitizedData);
                       clearInterval(intervalId); // Stop polling
                       window.location.href = sanitizedData; // Redirect to the URL in the response
                   }
@@ -96,11 +96,12 @@ document.getElementById('waitOpponent').addEventListener('click', function() {
       body: JSON.stringify({ action: 'wait_for_opponent' })
   })
   .then(response => response.json())
-  .then(jsonString => {
-      const data = JSON.parse(jsonString);
+  .then(data => {
       console.log('Game added to lobby:', data);
+      console.log('lobbyId = :', data.lobbyId);
       fetchData(); // Refresh table data after adding game
-      checkLobbyStatus(data.lobbyId); // Start polling the lobby status
+      const sId = sessionStorage.getItem('sId');
+      checkLobbyStatus(sId); // Start polling the lobby status
   })
   .catch(error => console.error('Error adding game to lobby:', error));
 });

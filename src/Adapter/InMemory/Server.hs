@@ -19,24 +19,19 @@ import Text.StringRandom (stringRandomIO)
 
 type InMemory r m = (Has (TVar ServerState) r, MonadReader r m, MonadIO m)
 
-data SessionData = SessionData
-  { _sdMayUserId :: Maybe D.UserId -- Nothing for guest
-  , _sdWSConn :: WSConnection
-  , _sdWSChan :: WS.WSChan
-  }
+
 
 data ServerState = ServerState 
-  { _serverSessions :: Map D.SessionId SessionData
+  { _serverSessions :: Map D.SessionId D.SessionData
   , _serverUserIdCounter :: D.UserId
   , _serverLobby :: [LobbyEntry]
   , _serverLobbyIdCounter :: D.LobbyId
   , _serverActiveGames :: Map D.GameRoomId D.GameRoom
   , _serverGameRoomIdCounter :: D.GameRoomId
-  , _serverSessionsWithActiveGames :: Set D.SessionId
   , _serverWSToSend :: [D.SessionId]
   } 
 
-makeLenses ''SessionData
+
 makeLenses ''ServerState
 
 
@@ -49,17 +44,17 @@ initialServerState = ServerState {
   , _serverGameRoomIdCounter = 0
   , _serverLobbyIdCounter = 0
   , _serverWSToSend = mempty
-  , _serverSessionsWithActiveGames = mempty
 }
 
 
 newSession :: InMemory r m => Maybe D.UserId -> D.SessionId -> WSConnection -> m (Either D.SessionError WS.WSChan)
 newSession mayUid sId conn = do
   chan <- atomically $ WS.emptyWSChan conn
-  let sessionData = SessionData
-        { _sdMayUserId = mayUid
-        , _sdWSConn = conn
-        , _sdWSChan = chan
+  let sessionData = D.SessionData
+        { D._sdMayUserId = mayUid
+        , D._sdWSConn = conn
+        , D._sdWSChan = chan
+        , D._sdMayActiveGame = Nothing
         }
   tvar :: TVar ServerState <- asks getter
   liftIO $ atomically $ do
@@ -69,11 +64,11 @@ newSession mayUid sId conn = do
   pure $ Right chan
 
 
-findUserBySessionId :: InMemory r m => D.SessionId -> m (Maybe D.UserId)
+findUserBySessionId :: InMemory r m => D.SessionId -> m (Maybe D.SessionData)
 findUserBySessionId sId = do
   tvar :: TVar ServerState <- asks getter
   state <- readTVarIO tvar
-  pure $ _sdMayUserId =<< Map.lookup sId (state ^. serverSessions)
+  pure $ Map.lookup sId (state ^. serverSessions)
 
 
 disconnectWSConn :: InMemory r m => WS.WSConnection -> D.SessionId -> m ()
@@ -236,23 +231,27 @@ addGameToLobby sessionIdHost lobbyWSConnectionHost lobbyGameType = do
   tvar <- asks getter
   liftIO $ atomically $ do
     state :: ServerState <- readTVar tvar
-    if Set.member sessionIdHost (state ^. serverSessionsWithActiveGames)
-      then pure $ Left D.LobbyErrorActiveGameIsGoingOn
-      else if any (\lb -> lobbySessionIdHost lb == sessionIdHost) (state ^. serverLobby)
-        then pure $ Left D.LobbyErrorGameOrderIsInTheLobby
-        else do
-          let lobbyLobbyId = state ^. serverLobbyIdCounter
-          let newLobby = LobbyEntry
-                { lobbyLobbyId
-                , lobbySessionIdHost = sessionIdHost
-                , lobbyWSConnectionHost
-                , lobbyGameType
-                , lobbyMaybeGameRoomId = Nothing
-                }
-          writeTVar tvar $
-            state & serverLobbyIdCounter .~ lobbyLobbyId
-                  & serverLobby %~ (newLobby :)
-          pure $ Right lobbyLobbyId
+    case Map.lookup sessionIdHost (state ^. serverSessions) of
+      Nothing -> pure (Left D.LobbyErrorSessionIsNotActive)
+      Just sd -> do
+        case sd ^. D.sdMayActiveGame of
+          Just _ -> pure (Left D.LobbyErrorActiveGameIsGoingOn)
+          Nothing -> do
+            if any (\lb -> lobbySessionIdHost lb == sessionIdHost) (state ^. serverLobby)
+              then pure (Left D.LobbyErrorGameOrderIsInTheLobby)
+              else do
+                let lobbyLobbyId = state ^. serverLobbyIdCounter + 1
+                let newLobby = LobbyEntry
+                      { lobbyLobbyId
+                      , lobbySessionIdHost = sessionIdHost
+                      , lobbyWSConnectionHost
+                      , lobbyGameType
+                      , lobbyMaybeGameRoomId = Nothing
+                      }
+                writeTVar tvar $
+                  state & serverLobbyIdCounter .~ lobbyLobbyId
+                        & serverLobby %~ (newLobby :)
+                pure $ Right lobbyLobbyId
 
 getLobbyEntries :: InMemory r m => m [LobbyEntry]
 getLobbyEntries = asks getter >>= (_serverLobby <$>) . readTVarIO 
@@ -260,7 +259,7 @@ getLobbyEntries = asks getter >>= (_serverLobby <$>) . readTVarIO
 
 joinGame :: InMemory r m => D.SessionIdGuest -> WSConnection -> D.LobbyId -> m (Maybe D.GameRoomId)
 joinGame sIdGuest wsConnGuest lobbyId = do
-  let wsChanGuest = WS.emptyWSChan wsConnGuest
+  guestChan <- atomically $ WS.emptyWSChan wsConnGuest
   tvar <- asks getter
   liftIO $ atomically $ do
     state :: ServerState <- readTVar tvar
@@ -268,8 +267,6 @@ joinGame sIdGuest wsConnGuest lobbyId = do
         ([lbEntry@LobbyEntry{lobbySessionIdHost, lobbyGameType, lobbyWSConnectionHost}],restLobby) -> do 
             tvarGameState <- newTVar G.initialGameState
             hostChan <- WS.emptyWSChan lobbyWSConnectionHost
-            guestChan <- WS.emptyWSChan wsConnGuest
-            let wsChanHost = WS.emptyWSChan lobbyWSConnectionHost
             let newGameRoom = D.GameRoom
                   { D.gameRoomGameType = lobbyGameType
                   , D.gameRoomHost = lobbySessionIdHost
@@ -284,7 +281,8 @@ joinGame sIdGuest wsConnGuest lobbyId = do
               state & serverGameRoomIdCounter .~ gameRoomId
                     & serverLobby .~ newLobbys
                     & serverActiveGames %~ Map.insert gameRoomId newGameRoom
-                    & serverSessionsWithActiveGames %~ (Set.insert sIdGuest . Set.insert lobbySessionIdHost)
+                    & serverSessions %~ Map.update (\sd -> Just sd{D._sdMayActiveGame = Just gameRoomId}) sIdGuest
+                    & serverSessions %~ Map.update (\sd -> Just sd{D._sdMayActiveGame = Just gameRoomId}) lobbySessionIdHost
             pure (Just gameRoomId)
         _ -> pure Nothing 
 

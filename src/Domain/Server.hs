@@ -1,4 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module Domain.Server 
   ( UserId(..)
   , SessionId(..)
@@ -13,15 +15,20 @@ module Domain.Server
   , LobbyError(..)
   , SessionError(..)
   , LobbyEntry(..)
+  , SessionData(..)
+  , sdMayUserId
+  , sdWSConn
+  , sdWSChan
+  , sdMayActiveGame
   , generateNewSessionId
-  , resolveSessionId
+  , resolveSessionData
   -- , processOneWSMessageEcho
-  , checkGameInLobby
-  , checkLobbyGameStatus
   , Token
   -- , initGuestSession
   -- , initRegUserSession
   , lengthOfSessionIdConst
+  , checkSessionGameStatus
+  , checkGameInLobby
   ) where
 
 
@@ -32,6 +39,7 @@ import WebSocketServer(WSMessage, WSChan(..), WSConnection)
 import qualified Domain.GameBot.GameModel as G
 import qualified Data.Text as Text
 import Text.StringRandom (stringRandomIO)
+import Control.Lens
 
 type Token = Text
 type SessionIdHost = SessionId
@@ -42,6 +50,13 @@ newtype SessionId = SessionId {unSessionId :: Text}
 
 lengthOfSessionIdConst :: Int
 lengthOfSessionIdConst = 32
+
+data SessionData = SessionData
+  { _sdMayUserId :: Maybe UserId -- Nothing for guest
+  , _sdWSConn :: WSConnection
+  , _sdWSChan :: WS.WSChan
+  , _sdMayActiveGame :: Maybe GameRoomId
+  }
 
 newtype UserId = UserId {unUserId :: Int}
   deriving (Show, Eq, Ord, Num)
@@ -73,6 +88,7 @@ data LobbyEntry = LobbyEntry
 data LobbyError =
     LobbyErrorActiveGameIsGoingOn
   | LobbyErrorGameOrderIsInTheLobby
+  | LobbyErrorSessionIsNotActive
     deriving (Show, Eq, Ord)
 
 data SessionError =
@@ -81,9 +97,12 @@ data SessionError =
   | SessionErrorWSConnectionIsAlreadyActive
     deriving(Show, Eq, Ord)
 
+makeLenses ''SessionData
+
+
 class Monad m => SessionRepo m where
   newSession :: Maybe UserId -> SessionId -> WSConnection -> m (Either SessionError WSChan)
-  findUserBySessionId :: SessionId -> m (Maybe UserId)
+  findUserBySessionId :: SessionId -> m (Maybe SessionData)
 
 class Monad m => WSRepo m where
   -- initWSConn :: SessionId -> m (Either SessionError (TVar WSChan))
@@ -112,9 +131,26 @@ generateNewSessionId = do
 -- initRegUserSession :: SessionRepo m => UserId -> m SessionId
 -- initRegUserSession = newSession . Just
 
-resolveSessionId :: SessionRepo m => SessionId -> m (Maybe UserId)
-resolveSessionId = findUserBySessionId
+resolveSessionData :: SessionRepo m => SessionId -> m (Maybe SessionData)
+resolveSessionData = findUserBySessionId
 
+-- checkLobbyGameStatus :: GameRepo m => LobbyId -> m (Maybe GameRoomId)
+-- checkLobbyGameStatus lbId = do
+--   lobbys <- getLobbyEntries
+--   case filter ((==) lbId . lobbyLobbyId) lobbys of
+--     [lobby] -> pure (lobbyMaybeGameRoomId lobby)
+--     _ -> pure Nothing
+
+checkSessionGameStatus :: SessionRepo m => SessionId -> m (Maybe GameRoomId)
+checkSessionGameStatus sId = do
+  maySd <- resolveSessionData sId
+  case maySd of
+    Nothing -> pure Nothing
+    Just sd -> pure (sd ^. sdMayActiveGame)
+
+
+checkGameInLobby :: GameRepo m => LobbyId -> m Bool
+checkGameInLobby lbId = any ((==) lbId . lobbyLobbyId) <$> getLobbyEntries
 
 
 --------------------------------------------------
@@ -137,13 +173,5 @@ resolveSessionId = findUserBySessionId
 --         Nothing -> pure Nothing
         
 
-checkGameInLobby :: GameRepo m => LobbyId -> m Bool
-checkGameInLobby lbId = any ((==) lbId . lobbyLobbyId) <$> getLobbyEntries
 
 
-checkLobbyGameStatus :: GameRepo m => LobbyId -> m (Maybe GameRoomId)
-checkLobbyGameStatus lbId = do
-  lobbys <- getLobbyEntries
-  case filter ((==) lbId . lobbyLobbyId) lobbys of
-    [lobby] -> pure (lobbyMaybeGameRoomId lobby)
-    _ -> pure Nothing
