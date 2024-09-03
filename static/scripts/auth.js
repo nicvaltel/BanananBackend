@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const { sId, uId } = await getSession();
             const port = await initWebSocket(sId);
-``
             // Сохраняем данные в sessionStorage
              sessionStorage.setItem('ws', 'shared');
              sessionStorage.setItem('sId', sId);

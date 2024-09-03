@@ -22,6 +22,32 @@ function sendWebSocketMessage(message) {
 }
 
 
+async function getSession() {
+  try {
+      let response = await fetch('/api/getsession');
+      if (!response.ok) {
+          throw new Error('Network response was not ok');
+      }
+      let data = await response.json();
+      return data;
+  } catch (error) {
+      console.error('Error fetching session in getSession:', error);
+  }
+}
+
+async function checkAuth(){
+  try {
+    const { sId, uId } = await getSession();
+    if (sId != sessionStorage.getItem('sId')) {
+      window.location.href = '/auth';
+    }
+  } catch (error) {
+    console.error('Error in checkAuth function:', error);
+    window.location.href = '/auth';
+  }
+}
+
+
 function fetchData() {
     fetch('/api/lobbytable')
         .then(response => response.json())
@@ -82,32 +108,31 @@ function checkLobbyStatus(sId) {
 }
 
 
-document.getElementById('startBot').addEventListener('click', function() {
-  console.log('Start Game with Bot button pressed');
-});
-
-document.getElementById('waitOpponent').addEventListener('click', function() {
-  console.log('Wait for Opponent button pressed');
-  fetch('/api/addgametolobby', {
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ action: 'wait_for_opponent' })
-  })
-  .then(response => response.json())
-  .then(data => {
-      console.log('Game added to lobby:', data);
-      console.log('lobbyId = :', data.lobbyId);
-      fetchData(); // Refresh table data after adding game
-      const sId = sessionStorage.getItem('sId');
-      checkLobbyStatus(sId); // Start polling the lobby status
-  })
-  .catch(error => console.error('Error adding game to lobby:', error));
-});
-
-
 document.addEventListener('DOMContentLoaded', function() {
+
+  document.getElementById('startBot').addEventListener('click', function() {
+      console.log('Start Game with Bot button pressed');
+      });
+      
+  document.getElementById('waitOpponent').addEventListener('click', function() {
+    console.log('Wait for Opponent button pressed');
+    fetch('/api/addgametolobby', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'wait_for_opponent' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Game added to lobby:', data);
+        console.log('lobbyId = :', data.lobbyId);
+        fetchData(); // Refresh table data after adding game
+        const sId = sessionStorage.getItem('sId');
+        checkLobbyStatus(sId); // Start polling the lobby status
+    })
+    .catch(error => console.error('Error adding game to lobby:', error));
+    });
 
   sendWebSocketMessage('Hello from /lobby page!')
         .then(response => {
@@ -116,6 +141,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error sending WebSocket message:', error);
         });
+
+  checkAuth();
 
   // Fetch data initially and then every 0.5 seconds
   fetchData();

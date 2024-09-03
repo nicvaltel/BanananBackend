@@ -25,6 +25,7 @@ newtype App a = App { unApp :: ReaderT AppState IO a  }
 instance SessionRepo App where
   newSession = Mem.newSession
   findUserBySessionId = Mem.findUserBySessionId
+  debugGetAllSessions = Mem.debugGetAllSessions
 
 instance WSRepo App where
   -- initWSConn = Mem.initWSConn

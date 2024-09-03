@@ -29,3 +29,6 @@ routes = do
 
   get "/gameroom/:lobbyid" $ do
     file "static/game.html"
+
+  get "/sessionrepo" $
+    file "static/sessionrepo.html"

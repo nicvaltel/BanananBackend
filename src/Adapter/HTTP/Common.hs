@@ -48,7 +48,7 @@ setByteStringValueInCookie bsName bsValue = do
 getCurrentUserId :: (D.SessionRepo m) => ActionT m (Maybe (D.SessionId, Maybe D.UserId))
 getCurrentUserId = do
   maySidText <- getCookie "sId"
-  mayUidText <- getCookie "sIdToken"
+  mayUidText <- getCookie "uId"
   case maySidText of
     Nothing -> pure Nothing
     Just sId -> do

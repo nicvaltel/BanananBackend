@@ -44,8 +44,6 @@ library
       Domain.GameBot.Server
       Domain.Server
       Domain.Validation
-      HSPG.Temp
-      HSPG.TempKind
       Lib
       Reexport
       Utils.Utils

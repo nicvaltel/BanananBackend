@@ -103,6 +103,7 @@ makeLenses ''SessionData
 class Monad m => SessionRepo m where
   newSession :: Maybe UserId -> SessionId -> WSConnection -> m (Either SessionError WSChan)
   findUserBySessionId :: SessionId -> m (Maybe SessionData)
+  debugGetAllSessions :: m (Map SessionId SessionData)
 
 class Monad m => WSRepo m where
   -- initWSConn :: SessionId -> m (Either SessionError (TVar WSChan))

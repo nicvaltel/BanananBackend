@@ -14,7 +14,8 @@ import Domain.Server (LobbyEntry(..))
 import Domain.Game (GameType(..))
 import qualified Data.Text.Encoding as T
 import Utils.Utils (logWarning, safeRead)
-import Data.Aeson (decode, object, (.=), Value, Object)
+import Data.Aeson (decode, object, (.=), Value, Object, encode)
+import qualified Data.Map as Map
 
 
 mkJsonIntPairStringInt :: (String, Int) -> String
@@ -31,10 +32,10 @@ routes = do
 
   get "/api/getsession" $ do
     (D.SessionId sId, mayUid) <- reqCurrentUserId
-    setByteStringValueInCookie "sId" (T.encodeUtf8 $ tshow sId)
+    setByteStringValueInCookie "sId" (T.encodeUtf8 $ tshow sId) -- TODO uId and sId saving into sessionStorage via javascript session
     case mayUid of
       Just (D.UserId uId) -> do
-        setByteStringValueInCookie "uId" (T.encodeUtf8 $ tshow uId) -- new token generated
+        setByteStringValueInCookie "uId" (T.encodeUtf8 $ tshow uId) -- TODO uId and sId saving into sessionStorage via javascript session
         let obj = object ["uId" .= uId, "sId" .= sId] :: Value
         json obj
       Nothing -> do
@@ -104,3 +105,8 @@ routes = do
                     | otherwise -> do
                       _ <- lift $ D.joinGame sId (D._sdWSConn sd) lobbyId
                       pure ()
+
+  get "/api/sessionrepo" $ do
+    ss <- lift D.debugGetAllSessions
+    let obj = object ["sessionIds" .= map D.unSessionId (Map.keys ss)] :: Value
+    json obj

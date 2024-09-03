@@ -287,6 +287,12 @@ joinGame sIdGuest wsConnGuest lobbyId = do
         _ -> pure Nothing 
 
 
+debugGetAllSessions :: InMemory r m => m (Map D.SessionId D.SessionData)
+debugGetAllSessions = do
+  tvar <- asks getter
+  state :: ServerState <- readTVarIO tvar
+  pure (state ^. serverSessions)
+
 -- startGameWithBot :: InMemory r m => D.SessionId -> GameType -> m (Either D.LobbyError D.GameRoomId)
 -- startGameWithBot sessionIdHost gameType = do
 --   tvar <- asks getter
